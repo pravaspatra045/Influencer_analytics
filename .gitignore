@@ -111,6 +111,8 @@ celerybeat-schedule.*
 # Environments 
 .env 
 .env.*
+!.env.example
+
 .myvenv 
 env/ 
 myvenv/ 
@@ -161,7 +163,6 @@ GitHub.sublime-settings
 # Custom
 venv
 
-!.env.example
 
 # Python
 __pycache__/
