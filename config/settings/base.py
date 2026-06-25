@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'apps.users',
     'apps.influencers',
-    'apps.storages',
+    'storages',
 ]
 
 #Templates settings
