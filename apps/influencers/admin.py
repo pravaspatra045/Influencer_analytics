@@ -1,3 +1,12 @@
 from django.contrib import admin
+from .models import (
+    Influencer,
+    InfluencerProfile,
+    SocialMediaAccount,
+    BankDetail,
+)
 
-# Register your models here.
+admin.site.register(Influencer)
+admin.site.register(InfluencerProfile)
+admin.site.register(SocialMediaAccount)
+admin.site.register(BankDetail)

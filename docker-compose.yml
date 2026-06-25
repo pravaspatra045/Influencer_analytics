@@ -8,17 +8,18 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - .env.local
+      - .env.prod
+    environment:
+    - ENVIRONMENT=prod
     depends_on:
-      - redis
+      - db
 
-  redis:
-    image: redis:7
+  db:
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_DB: influencer
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
     ports:
-      - "6379:6379"
-
-  celery_worker:
-    build: .
-    command: celery -A config worker -l info
-    depends_on:
-      - redis
+      - "5432:5432"

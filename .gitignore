@@ -110,6 +110,7 @@ celerybeat-schedule.*
 
 # Environments 
 .env 
+.env.*
 .myvenv 
 env/ 
 myvenv/ 
@@ -159,3 +160,30 @@ GitHub.sublime-settings
 
 # Custom
 venv
+
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+
+# Logs
+logs/
+*.log
+
+# Media
+media/
+
+# Static
+staticfiles/
+
+# Database
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
