@@ -571,26 +571,29 @@ class ExportInfluencersAPI(APIView):
             status=400
         )
         
+from apps.influencers.services import create_export_report
+
 class AsyncReportAPI(APIView):
 
     permission_classes = [IsAuthenticated, IsAdminOrManager]
 
     def post(self, request):
 
-        report = Report.objects.create(
-            report_type="influencer_export",
-            requested_by=request.user
-        )
-
-        generate_influencer_report.delay(report.id)
+        report = create_export_report(request.user)
 
         return Response(
             standard_response(
-                message="Report generation started",
-                data={"report_id": report.id}
-            )
+                message="Report generation started.",
+                data={
+                    "report_id": str(report.id),
+                    "status": report.status,
+                },
+            ),
+            status=status.HTTP_202_ACCEPTED,
         )
         
+        
+from apps.influencers.models import ExportReport
 class ReportStatusAPI(APIView):
 
     permission_classes = [IsAuthenticated]
@@ -598,23 +601,28 @@ class ReportStatusAPI(APIView):
     def get(self, request, report_id):
 
         try:
-            report = Report.objects.get(id=report_id)
+
+            report = ExportReport.objects.get(id=report_id)
 
             return Response(
                 standard_response(
-                    message="Report status fetched",
+                    message="Report status fetched.",
                     data={
+                        "report_id": str(report.id),
                         "status": report.status,
-                        "file_url": report.file_url,
-                        "error": report.error_message
-                    }
+                        "file_url": report.file.url if report.file else None,
+                        "error": report.error_message,
+                    },
                 )
             )
 
-        except Report.DoesNotExist:
+        except ExportReport.DoesNotExist:
+
             return Response(
-                standard_response(error="Report not found"),
-                status=404
+                standard_response(
+                    error="Report not found.",
+                ),
+                status=status.HTTP_404_NOT_FOUND,
             )
 from services.storage_service import StorageService     
     
