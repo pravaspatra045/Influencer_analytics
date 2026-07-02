@@ -163,7 +163,11 @@ class ExportReport(models.Model):
         blank=True,
         null=True,
     )
-
+    filters = models.JSONField(
+    default=dict,
+    blank=True,
+    )
+    
     class Meta:
         ordering = ["-created_at"]
 

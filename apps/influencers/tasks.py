@@ -33,12 +33,28 @@ def generate_influencer_report(self, report_id):
 
     try:
 
-        influencers = Influencer.objects.select_related("user").all()
+        queryset = Influencer.objects.select_related("user")
 
+        filters = report.filters
+
+        if filters.get("status"):
+            queryset = queryset.filter(
+                status=filters["status"]
+            )
+
+        if filters.get("search"):
+            queryset = queryset.filter(
+                full_name__icontains=filters["search"]
+            )
+
+        if filters.get("sort_by"):
+            queryset = queryset.order_by(
+                filters["sort_by"]
+            )
         filename = f"influencer_report_{uuid4().hex}.xlsx"
 
         file_path = generate_influencer_excel(
-            influencers=influencers,
+            queryset=queryset,
             filename=filename,
         )
 

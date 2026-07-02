@@ -579,7 +579,16 @@ class AsyncReportAPI(APIView):
 
     def post(self, request):
 
-        report = create_export_report(request.user)
+        filters = {
+            "status": request.data.get("status"),
+            "search": request.data.get("search"),
+            "sort_by": request.data.get("sort_by"),
+        }
+
+        report = create_export_report(
+            request.user,
+            filters=filters,
+        )
 
         return Response(
             standard_response(

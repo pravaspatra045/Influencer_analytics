@@ -2,14 +2,16 @@ from apps.influencers.models import ExportReport
 from apps.influencers.tasks import generate_influencer_report
 
 
-def create_export_report(user, report_type="INFLUENCER_EXPORT"):
-    """
-    Create export report and start background generation.
-    """
+def create_export_report(
+    user,
+    filters=None,
+    report_type="INFLUENCER_EXPORT",
+):
 
     report = ExportReport.objects.create(
         user=user,
         report_type=report_type,
+        filters=filters or {},
         status=ExportReport.Status.PENDING,
     )
 
