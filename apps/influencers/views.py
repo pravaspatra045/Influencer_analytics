@@ -10,7 +10,7 @@ from apps.influencers.models import Influencer
 from rest_framework.generics import ListAPIView
 from core.permissions import IsAdminOrManager
 from rest_framework.permissions import IsAuthenticated
-from apps.influencers.serializers import InfluencerListSerializer
+from apps.influencers.serializers import InfluencerListSerializer,ReportListSerializer
 from django.db.models import Avg, Max, Min, F, ExpressionWrapper, DurationField
 from django.utils import timezone
 from django.db.models.functions import TruncDate
@@ -582,7 +582,9 @@ class AsyncReportAPI(APIView):
         filters = {
             "status": request.data.get("status"),
             "search": request.data.get("search"),
-            "sort_by": request.data.get("sort_by"),
+            "ordering": request.data.get("ordering"),
+            "min_followers": request.data.get("min_followers"),
+            "max_followers": request.data.get("max_followers"),
         }
 
         report = create_export_report(
@@ -807,3 +809,80 @@ class InfluencerReviewAPI(APIView):
                 standard_response(error="Influencer not found"),
                 status=404
             )
+            
+class MyReportsAPI(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+    def get(self, request):
+
+        reports = ReportService.get_reports(
+            request.user
+        )
+
+        serializer = ReportListSerializer(
+            reports,
+            many=True,
+            context={
+                "request": request
+            }
+        )
+
+        return Response(
+            standard_response(
+                message="Reports fetched successfully",
+                data=serializer.data
+            ),
+            status=200
+        )
+
+from django.http import FileResponse
+
+
+class DownloadReportAPI(APIView):
+
+    permission_classes = [
+        IsAuthenticated
+    ]
+
+    def get(self, request, report_id):
+
+        report = ReportService.get_report_for_download(
+            report_id,
+            request.user
+        )
+
+        if report.status == ExportReport.Status.PROCESSING:
+
+            return Response(
+                standard_response(
+                    error="Report is still processing."
+                ),
+                status=202
+            )
+
+        if report.status == ExportReport.Status.FAILED:
+
+            return Response(
+                standard_response(
+                    error="Report generation failed."
+                ),
+                status=400
+            )
+
+        if not report.file:
+
+            return Response(
+                standard_response(
+                    error="Report file not found."
+                ),
+                status=404
+            )
+
+        return FileResponse(
+            report.file.open("rb"),
+            as_attachment=True,
+            filename=report.file.name.split("/")[-1],
+        )

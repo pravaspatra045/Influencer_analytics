@@ -47,10 +47,21 @@ def generate_influencer_report(self, report_id):
                 full_name__icontains=filters["search"]
             )
 
-        if filters.get("sort_by"):
-            queryset = queryset.order_by(
-                filters["sort_by"]
+        if filters.get("min_followers"):
+            queryset = queryset.filter(
+                followers__gte=filters["min_followers"]
             )
+
+        if filters.get("max_followers"):
+            queryset = queryset.filter(
+                followers__lte=filters["max_followers"]
+            )
+
+        if filters.get("ordering"):
+            queryset = queryset.order_by(
+                filters["ordering"]
+            )
+            
         filename = f"influencer_report_{uuid4().hex}.xlsx"
 
         file_path = generate_influencer_excel(

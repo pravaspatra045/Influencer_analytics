@@ -4,7 +4,7 @@ from apps.influencers.views import (InfluencerRegistrationAPI,InfluencerApproval
     RecentInfluencersAPI,
     InfluencerTrendAPI,
     StatusDistributionAPI,GrowthRateAPI,ApprovalTimeAnalyticsAPI, RejectionInsightsAPI, RejectionRateAPI ,ExportInfluencersAPI, AsyncReportAPI,ReportStatusAPI
-    ,UploadDocumentAPI, InfluencerDocumentsAPI, VerifyDocumentAPI, InfluencerReviewAPI)
+    ,UploadDocumentAPI, InfluencerDocumentsAPI, VerifyDocumentAPI, InfluencerReviewAPI ,MyReportsAPI ,DownloadReportAPI)
 from apps.users.views import LoginAPI
 
 
@@ -38,4 +38,13 @@ urlpatterns = [
     
     # influencer review
     path("influencer-review/<int:influencer_id>/", InfluencerReviewAPI.as_view()),
+    
+    # my report
+    path("reports/",MyReportsAPI.as_view(),name="my-reports",),
+    path("reports/<uuid:report_id>/download/",DownloadReportAPI.as_view(),name="download-report",),
+    
+    
+    
+    
+    
 ]

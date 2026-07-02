@@ -1,6 +1,10 @@
 import csv
 from io import StringIO, BytesIO
 from openpyxl import Workbook
+from apps.influencers.models import ExportReport
+from django.core.exceptions import PermissionDenied
+from django.shortcuts import get_object_or_404
+from apps.influencers.tasks import generate_influencer_report
 
 
 class ReportService:
@@ -65,3 +69,51 @@ class ReportService:
         buffer.seek(0)
 
         return buffer
+    
+    @staticmethod
+    def get_reports(user):
+
+        return (
+            ExportReport.objects
+            .filter(user=user)
+            .order_by("-created_at")
+        )
+        
+    @staticmethod
+    def get_report_for_download(report_id, user):
+
+        report = get_object_or_404(
+            ExportReport,
+            id=report_id
+        )
+
+        if report.user != user:
+            raise PermissionDenied(
+                "You are not allowed to access this report."
+            )
+
+        return report
+    
+    @staticmethod
+    def create_export_report(
+        user,
+        filters=None,
+        report_type="INFLUENCER_EXPORT",
+    ):
+
+        report = ExportReport.objects.create(
+            user=user,
+            report_type=report_type,
+            filters=filters or {},
+            status=ExportReport.Status.PENDING,
+        )
+
+        task = generate_influencer_report.delay(
+            str(report.id)
+        )
+
+        report.task_id = task.id
+
+        report.save(update_fields=["task_id"])
+
+        return report

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from apps.users.models import User
 from apps.influencers.models import Influencer
+from apps.influencers.models import ExportReport
 
 
 class SocialMediaSerializer(serializers.Serializer):
@@ -47,3 +48,37 @@ class InfluencerListSerializer(serializers.ModelSerializer):
             'created_at',
             'approved_at'
         ]
+
+
+class ReportListSerializer(serializers.ModelSerializer):
+
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+
+        model = ExportReport
+
+        fields = [
+            "id",
+            "report_type",
+            "status",
+            "created_at",
+            "completed_at",
+            "file_url",
+        ]
+
+    def get_file_url(self, obj):
+
+        if obj.file:
+
+            request = self.context.get("request")
+
+            if request:
+
+                return request.build_absolute_uri(
+                    obj.file.url
+                )
+
+            return obj.file.url
+
+        return None
