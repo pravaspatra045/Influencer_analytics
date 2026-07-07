@@ -2,13 +2,12 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-
+from django.http import HttpResponse
 from core.utils import standard_response
 from apps.influencers.serializers import InfluencerRegistrationSerializer
 from services.influencer_service import InfluencerService
 from apps.influencers.models import Influencer
 from rest_framework.generics import ListAPIView
-from core.permissions import IsAdminOrManager
 from rest_framework.permissions import IsAuthenticated
 from apps.influencers.serializers import InfluencerListSerializer,ReportListSerializer
 from django.db.models import Avg, Max, Min, F, ExpressionWrapper, DurationField
@@ -17,6 +16,10 @@ from django.db.models.functions import TruncDate
 from django.db.models import Count
 from apps.influencers.tasks import generate_influencer_report
 from apps.influencers.models import Report ,InfluencerDocument
+from services.influencer_query_service import InfluencerQueryService
+from services.report_service import ReportService
+#from core.pagination import StandardResultsSetPagination
+
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +76,7 @@ class InfluencerRegistrationAPI(APIView):
 
 class InfluencerApprovalAPI(APIView):
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, ]
 
     def post(self, request, pk):
         """
@@ -126,61 +129,41 @@ class InfluencerApprovalAPI(APIView):
             
 
 
-class InfluencerListAPI(ListAPIView):
+class InfluencerListAPI(APIView):
     """
-    Admin dashboard API
-
-    Supports:
-    - Search (email, username)
-    - Filter (status, date range)
-    - Sorting
-    - Pagination
+    List influencers with filtering, searching and ordering.
     """
 
-    serializer_class = InfluencerListSerializer
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [
+        IsAuthenticated,
+        
+    ]
 
-    def get_queryset(self):
-        queryset = Influencer.objects.all()
+    def get(self, request):
 
-        # 🔍 SEARCH (email / username)
-        search = self.request.query_params.get('search')
-        if search:
-            queryset = queryset.filter(
-                Q(user__email__icontains=search) |
-                Q(user__username__icontains=search)
-            )
+        filters = {
+            "status": request.query_params.get("status"),
+            "search": request.query_params.get("search"),
+            "ordering": request.query_params.get("ordering"),
+            "min_followers": request.query_params.get("min_followers"),
+            "max_followers": request.query_params.get("max_followers"),
+        }
 
-        # 🔹 FILTER: status
-        status_filter = self.request.query_params.get('status')
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
+        queryset = InfluencerQueryService.get_queryset(filters)
 
-        # 🔹 FILTER: date range (created_at)
-        start_date = self.request.query_params.get('start_date')
-        end_date = self.request.query_params.get('end_date')
+        serializer = InfluencerListSerializer(
+            queryset,
+            many=True,
+            context={"request": request},
+        )
 
-        if start_date and end_date:
-            queryset = queryset.filter(
-                created_at__date__range=[start_date, end_date]
-            )
-
-        # 🔹 SORTING
-        ordering = self.request.query_params.get('ordering', '-created_at')
-
-        allowed_sort_fields = [
-            'created_at',
-            '-created_at',
-            'approved_at',
-            '-approved_at'
-        ]
-
-        if ordering not in allowed_sort_fields:
-            ordering = '-created_at'
-
-        queryset = queryset.order_by(ordering)
-
-        return queryset
+        return Response(
+            standard_response(
+                message="Influencers fetched successfully.",
+                data=serializer.data,
+            ),
+            status=status.HTTP_200_OK,
+        )
     
 
 
@@ -228,7 +211,7 @@ class DashboardStatsAPI(APIView):
     Advanced dashboard stats with time filters & KPIs
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated,]
 
     def get(self, request):
 
@@ -271,7 +254,7 @@ class RecentInfluencersAPI(APIView):
     Returns latest registered influencers
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, ]
 
     def get(self, request):
         influencers = Influencer.objects.select_related('user').order_by('-created_at')[:5]
@@ -299,7 +282,7 @@ class RecentInfluencersAPI(APIView):
     Returns latest registered influencers
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, ]
 
     def get(self, request):
         influencers = Influencer.objects.select_related('user').order_by('-created_at')[:5]
@@ -328,7 +311,7 @@ class InfluencerTrendAPI(APIView):
     Trend with time filter
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, ]
 
     def get(self, request):
 
@@ -362,7 +345,7 @@ class StatusDistributionAPI(APIView):
     Returns status distribution for charts
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, ]
 
     def get(self, request):
         distribution = (
@@ -384,7 +367,7 @@ class GrowthRateAPI(APIView):
     Calculates growth % between two periods
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, ]
 
     def get(self, request):
 
@@ -429,7 +412,7 @@ class ApprovalTimeAnalyticsAPI(APIView):
     Calculates approval time metrics
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, ]
 
     def get(self, request):
 
@@ -474,7 +457,7 @@ class RejectionInsightsAPI(APIView):
     Analyze rejection reasons
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, ]
 
     def get(self, request):
 
@@ -505,7 +488,7 @@ class RejectionRateAPI(APIView):
     Calculate rejection percentage
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, ]
 
     def get(self, request):
 
@@ -531,51 +514,60 @@ from services.report_service import ReportService
 
 class ExportInfluencersAPI(APIView):
     """
-    Export influencers data (CSV / Excel)
+    Export Influencers.
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
 
-        format_type = request.query_params.get("format", "csv")
+        filters = {
+            "status": request.query_params.get("status"),
+            "search": request.query_params.get("search"),
+            "ordering": request.query_params.get("ordering"),
+            "min_followers": request.query_params.get("min_followers"),
+            "max_followers": request.query_params.get("max_followers"),
+        }
 
-        queryset = Influencer.objects.select_related('user').all()
+        export_format = request.query_params.get(
+            "format",
+            "csv",
+        )
 
-        # 🔹 Apply same filters (reuse logic)
-        status_filter = request.query_params.get("status")
-        if status_filter:
-            queryset = queryset.filter(status=status_filter)
+        try:
 
-        if format_type == "csv":
-            buffer = ReportService.generate_csv(queryset)
-
-            response = HttpResponse(buffer, content_type='text/csv')
-            response['Content-Disposition'] = 'attachment; filename="influencers.csv"'
-
-            return response
-
-        elif format_type == "excel":
-            buffer = ReportService.generate_excel(queryset)
+            export_data = ReportService.export_report(
+                filters=filters,
+                export_format=export_format,
+            )
 
             response = HttpResponse(
-                buffer,
-                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                export_data["buffer"],
+                content_type=export_data["content_type"],
             )
-            response['Content-Disposition'] = 'attachment; filename="influencers.xlsx"'
+
+            response[
+                "Content-Disposition"
+            ] = (
+                f'attachment; filename="{export_data["filename"]}"'
+            )
 
             return response
 
-        return Response(
-            standard_response(error="Invalid format"),
-            status=400
-        )
+        except ValueError:
+
+            return Response(
+                standard_response(
+                    error="Invalid export format."
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         
 from apps.influencers.services import create_export_report
 
 class AsyncReportAPI(APIView):
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, ]
 
     def post(self, request):
 
@@ -687,7 +679,7 @@ class InfluencerDocumentsAPI(APIView):
     Admin view influencer documents
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, ]
 
     def get(self, request, influencer_id):
 
@@ -716,7 +708,7 @@ class VerifyDocumentAPI(APIView):
     Admin verifies documents
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, ]
 
     def post(self, request, doc_id):
 
@@ -742,7 +734,7 @@ class InfluencerReviewAPI(APIView):
     Admin full review API
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrManager]
+    permission_classes = [IsAuthenticated, ]
 
     def get(self, request, influencer_id):
 
@@ -809,7 +801,13 @@ class InfluencerReviewAPI(APIView):
                 standard_response(error="Influencer not found"),
                 status=404
             )
-            
+
+from core.pagination import StandardPagination
+from apps.influencers.serializers import (
+    ReportListSerializer,
+)
+
+
 class MyReportsAPI(APIView):
 
     permission_classes = [
@@ -818,25 +816,33 @@ class MyReportsAPI(APIView):
 
     def get(self, request):
 
-        reports = ReportService.get_reports(
-            request.user
+        queryset = ReportService.get_reports(
+            request.user,
+            request.query_params,
+        )
+
+        paginator = StandardPagination()
+
+        page = paginator.paginate_queryset(
+            queryset,
+            request,
         )
 
         serializer = ReportListSerializer(
-            reports,
+            page,
             many=True,
             context={
-                "request": request
-            }
+                "request": request,
+            },
         )
 
-        return Response(
+        return paginator.get_paginated_response(
             standard_response(
-                message="Reports fetched successfully",
-                data=serializer.data
-            ),
-            status=200
+                message="Reports fetched successfully.",
+                data=serializer.data,
+            )
         )
+
 
 from django.http import FileResponse
 
@@ -885,4 +891,70 @@ class DownloadReportAPI(APIView):
             report.file.open("rb"),
             as_attachment=True,
             filename=report.file.name.split("/")[-1],
+        )
+        
+class RetryReportAPI(APIView):
+    """
+    Retry a failed report.
+    """
+
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+    def post(self, request, report_id):
+        """
+        Retry a failed report.
+        """
+
+        try:
+
+            report = ReportService.retry_report(
+                report_id=report_id,
+                user=request.user,
+            )
+
+            return Response(
+                standard_response(
+                    message="Report queued successfully.",
+                    data={
+                        "report_id": str(report.id),
+                        "task_id": report.task_id,
+                        "status": report.status,
+                    },
+                ),
+                status=status.HTTP_200_OK,
+            )
+
+        except ValueError as exc:
+
+            return Response(
+                standard_response(
+                    error=str(exc),
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+            
+
+class ReportStatisticsAPI(APIView):
+    """
+    Report statistics.
+    """
+
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+    def get(self, request):
+
+        data = ReportService.get_report_statistics(
+            request.user
+        )
+
+        return Response(
+            standard_response(
+                message="Statistics fetched successfully.",
+                data=data,
+            ),
+            status=status.HTTP_200_OK,
         )

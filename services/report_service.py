@@ -1,82 +1,29 @@
-import csv
-from io import StringIO, BytesIO
-from openpyxl import Workbook
 from apps.influencers.models import ExportReport
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
-from apps.influencers.tasks import generate_influencer_report
 
+from services.export_service import ExportService
+from services.influencer_query_service import InfluencerQueryService
+from services.report_query_service import (
+    ReportQueryService,
+)
+from services.report_dispatcher import ReportDispatcher
 
 class ReportService:
     """
     Handles CSV & Excel export logic
     """
 
-    @staticmethod
-    def generate_csv(queryset):
-        """
-        Generate CSV from queryset
-        """
-
-        buffer = StringIO()
-        writer = csv.writer(buffer)
-
-        # Header
-        writer.writerow([
-            "ID", "Email", "Status", "Created At", "Approved At"
-        ])
-
-        # Rows
-        for obj in queryset:
-            writer.writerow([
-                obj.id,
-                obj.user.email,
-                obj.status,
-                obj.created_at,
-                obj.approved_at
-            ])
-
-        buffer.seek(0)
-        return buffer
-
-    @staticmethod
-    def generate_excel(queryset):
-        """
-        Generate Excel file
-        """
-
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Influencers"
-
-        # Header
-        ws.append([
-            "ID", "Email", "Status", "Created At", "Approved At"
-        ])
-
-        # Rows
-        for obj in queryset:
-            ws.append([
-                obj.id,
-                obj.user.email,
-                obj.status,
-                obj.created_at,
-                obj.approved_at
-            ])
-
-        buffer = BytesIO()
-        wb.save(buffer)
-        buffer.seek(0)
-
-        return buffer
     
     @staticmethod
-    def get_reports(user):
+    def get_reports(user, params):
+        """
+        Returns report queryset.
+        """
 
-        return (
-            ExportReport.objects
-            .filter(user=user)
-            .order_by("-created_at")
+        return ReportQueryService.get_queryset(
+            user=user,
+            filters=params,
         )
         
     @staticmethod
@@ -108,12 +55,81 @@ class ReportService:
             status=ExportReport.Status.PENDING,
         )
 
-        task = generate_influencer_report.delay(
-            str(report.id)
-        )
-
-        report.task_id = task.id
-
-        report.save(update_fields=["task_id"])
+        ReportDispatcher.dispatch(report)
 
         return report
+    
+    
+    @staticmethod
+    def export_report(filters, export_format):
+        """
+        Returns export file buffer and metadata.
+        """
+
+        queryset = InfluencerQueryService.get_queryset(filters)
+
+        if export_format == "csv":
+
+            return {
+                "buffer": ExportService.generate_csv(queryset),
+                "filename": "influencers.csv",
+                "content_type": "text/csv",
+            }
+
+        elif export_format == "excel":
+
+            return {
+                "buffer": ExportService.generate_excel(queryset),
+                "filename": "influencers.xlsx",
+                "content_type": (
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                ),
+            }
+
+        raise ValueError("Invalid export format.")
+    
+    @staticmethod
+    def retry_report(report_id, user):
+        """
+        Retry a failed report.
+
+        Only the owner of the report can retry it.
+        Only reports with FAILED status are allowed.
+        """
+
+        report = get_object_or_404(
+            ExportReport,
+            id=report_id,
+            user=user,
+        )
+
+        if report.status != ExportReport.Status.FAILED:
+            raise ValueError(
+                "Only failed reports can be retried."
+            )
+
+        # Reset report state
+        report.status = ExportReport.Status.PENDING
+        report.error_message = None
+        report.completed_at = None
+
+        report.save(
+            update_fields=[
+                "status",
+                "error_message",
+                "completed_at",
+            ]
+        )
+
+        # Queue the report again
+        ReportDispatcher.retry(report)
+
+        return report
+    
+    @staticmethod
+    def get_report_statistics(user):
+        """
+        Returns report statistics.
+        """
+
+        return ReportQueryService.get_statistics(user)

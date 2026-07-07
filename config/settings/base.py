@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from datetime import timedelta
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -115,6 +116,18 @@ CELERY_TASK_TRACK_STARTED = True
 
 CELERY_TASK_TIME_LIMIT = 30 * 60
 
+
+CELERY_BEAT_SCHEDULE = {
+
+    "cleanup-old-reports": {
+        "task": "apps.influencers.tasks.cleanup_old_reports",
+        "schedule": crontab(
+            hour=2,
+            minute=0,
+        ),
+    },
+
+}
 #AWS settings
 import boto3
 

@@ -7,10 +7,10 @@ from django.core.files import File
 from django.utils import timezone
 
 from apps.influencers.exports import generate_influencer_excel
-from apps.influencers.models import ExportReport, Influencer
+from apps.influencers.models import ExportReport
 
 logger = logging.getLogger(__name__)
-
+from services.report_cleanup_service import (ReportCleanupService)
 
 @shared_task(
     bind=True,
@@ -20,80 +20,66 @@ logger = logging.getLogger(__name__)
 )
 def generate_influencer_report(self, report_id):
     """
-    Generate influencer report in background.
+    Background task for generating reports.
     """
 
-    logger.info(f"Started report generation : {report_id}")
+    logger.info(
+        "Started report generation : %s",
+        report_id
+    )
 
-    report = ExportReport.objects.get(id=report_id)
+    report = ExportReport.objects.get(
+        id=report_id
+    )
 
     report.task_id = self.request.id
     report.status = ExportReport.Status.PROCESSING
-    report.save(update_fields=["task_id", "status"])
+
+    report.save(
+        update_fields=[
+            "task_id",
+            "status",
+        ]
+    )
 
     try:
 
-        queryset = Influencer.objects.select_related("user")
+        from services.export_service import ExportService
 
-        filters = report.filters
+        ExportService.generate_report(report)
 
-        if filters.get("status"):
-            queryset = queryset.filter(
-                status=filters["status"]
-            )
-
-        if filters.get("search"):
-            queryset = queryset.filter(
-                full_name__icontains=filters["search"]
-            )
-
-        if filters.get("min_followers"):
-            queryset = queryset.filter(
-                followers__gte=filters["min_followers"]
-            )
-
-        if filters.get("max_followers"):
-            queryset = queryset.filter(
-                followers__lte=filters["max_followers"]
-            )
-
-        if filters.get("ordering"):
-            queryset = queryset.order_by(
-                filters["ordering"]
-            )
-            
-        filename = f"influencer_report_{uuid4().hex}.xlsx"
-
-        file_path = generate_influencer_excel(
-            queryset=queryset,
-            filename=filename,
+        logger.info(
+            "Completed report generation : %s",
+            report_id,
         )
 
-        with open(file_path, "rb") as excel_file:
-            report.file.save(
-                filename,
-                File(excel_file),
-                save=False,
-            )
+    except Exception as exc:
 
-        report.status = ExportReport.Status.SUCCESS
-        report.completed_at = timezone.now()
-
-        report.save()
-
-        if os.path.exists(file_path):
-            os.remove(file_path)
-
-        logger.info(f"Completed report generation : {report_id}")
-
-    except Exception as e:
-
-        logger.exception("Report generation failed")
+        logger.exception(
+            "Report generation failed"
+        )
 
         report.status = ExportReport.Status.FAILED
-        report.error_message = str(e)
+        report.error_message = str(exc)
         report.completed_at = timezone.now()
 
         report.save()
 
         raise
+    
+@shared_task
+def cleanup_old_reports():
+    """
+    Delete old report files and database records.
+    """
+
+    deleted = (
+        ReportCleanupService.cleanup_old_reports()
+    )
+
+    logger.info(
+        "Cleanup completed. Deleted %s reports.",
+        deleted,
+    )
+
+    return deleted

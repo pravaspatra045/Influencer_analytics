@@ -1,31 +1,42 @@
-import boto3
-from django.conf import settings
+import os
 
-import uuid
+from django.core.files import File
 
 
 class StorageService:
+    """
+    Handles storing generated files.
+
+    Today:
+        Local Media Storage
+
+    Future:
+        AWS S3
+        Azure Blob
+        GCP Storage
+    """
 
     @staticmethod
-    def upload_file(file_obj, folder="documents"):
+    def save_report_file(report, file_path, filename):
         """
-        Upload file to S3 and return URL
+        Save generated report file.
         """
 
-        filename = f"{folder}/{uuid.uuid4()}_{file_obj.name}"
+        with open(file_path, "rb") as report_file:
 
-        s3 = boto3.client(
-            "s3",
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_REGION,
-        )
+            report.file.save(
+                filename,
+                File(report_file),
+                save=False,
+            )
 
-        s3.upload_fileobj(
-            file_obj,
-            settings.AWS_BUCKET_NAME,
-            filename,
-            ExtraArgs={"ContentType": file_obj.content_type}
-        )
+        report.save(update_fields=["file"])
 
-        return f"https://{settings.AWS_BUCKET_NAME}.s3.amazonaws.com/{filename}"
+    @staticmethod
+    def delete_local_file(file_path):
+        """
+        Delete temporary local file.
+        """
+
+        if os.path.exists(file_path):
+            os.remove(file_path)

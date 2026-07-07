@@ -52,33 +52,15 @@ class InfluencerListSerializer(serializers.ModelSerializer):
 
 class ReportListSerializer(serializers.ModelSerializer):
 
-    file_url = serializers.SerializerMethodField()
-
     class Meta:
 
         model = ExportReport
 
-        fields = [
+        fields = (
             "id",
             "report_type",
             "status",
             "created_at",
             "completed_at",
-            "file_url",
-        ]
-
-    def get_file_url(self, obj):
-
-        if obj.file:
-
-            request = self.context.get("request")
-
-            if request:
-
-                return request.build_absolute_uri(
-                    obj.file.url
-                )
-
-            return obj.file.url
-
-        return None
+            "file",
+        )
