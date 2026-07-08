@@ -958,3 +958,42 @@ class ReportStatisticsAPI(APIView):
             ),
             status=status.HTTP_200_OK,
         )
+        
+class SecureReportDownloadAPI(APIView):
+    """
+    Generate a temporary download URL for a report.
+    """
+
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+    def get(self, request, report_id):
+
+        report = ReportService.get_report_for_download(
+            report_id=report_id,
+            user=request.user,
+        )
+
+        if not report.file:
+            return Response(
+                standard_response(
+                    error="Report file not found."
+                ),
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        url = StorageService.generate_presigned_url(
+            report.file.name
+        )
+
+        return Response(
+            standard_response(
+                message="Download URL generated successfully.",
+                data={
+                    "download_url": url,
+                    "expires_in": 600,
+                },
+            ),
+            status=status.HTTP_200_OK,
+        )

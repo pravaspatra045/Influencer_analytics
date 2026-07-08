@@ -34,23 +34,158 @@ class Influencer(TimeStampedModel):
         return str(self.influencer_id)
     
 class InfluencerProfile(TimeStampedModel):
-    influencer = models.OneToOneField(Influencer, on_delete=models.CASCADE)
+    """
+    Stores personal information of an influencer.
+    """
 
-    full_name = models.CharField(max_length=100)
-    phone = models.CharField(max_length=15)
+    influencer = models.OneToOneField(
+        Influencer,
+        on_delete=models.CASCADE,
+        related_name="profile",
+    )
+
+    full_name = models.CharField(
+        max_length=100,
+    )
+
+    phone = models.CharField(
+        max_length=15,
+    )
+
+    profile_image = models.ImageField(
+        upload_to="profile-images/",
+        blank=True,
+        null=True,
+    )
+
+    bio = models.TextField(
+        blank=True,
+        default="",
+    )
+
+    date_of_birth = models.DateField(
+        blank=True,
+        null=True,
+    )
+
+    city = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    state = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    country = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    pincode = models.CharField(
+        max_length=10,
+        blank=True,
+    )
+
+    class Meta:
+        verbose_name = "Influencer Profile"
+        verbose_name_plural = "Influencer Profiles"
+
+    def __str__(self):
+        return self.full_name
     
 class SocialMediaAccount(TimeStampedModel):
-    influencer = models.ForeignKey(Influencer, on_delete=models.CASCADE)
+    """
+    Stores connected social media accounts.
+    """
 
-    platform = models.CharField(max_length=50)
-    handle = models.CharField(max_length=100)
-    followers = models.IntegerField()
+    influencer = models.ForeignKey(
+        Influencer,
+        on_delete=models.CASCADE,
+        related_name="social_accounts",
+    )
+
+    PLATFORM_CHOICES = (
+        ("INSTAGRAM", "Instagram"),
+        ("YOUTUBE", "YouTube"),
+        ("FACEBOOK", "Facebook"),
+        ("TWITTER", "Twitter"),
+        ("LINKEDIN", "LinkedIn"),
+    )
+
+    platform = models.CharField(
+        max_length=20,
+        choices=PLATFORM_CHOICES,
+    )
+
+    handle = models.CharField(
+        max_length=100,
+    )
+
+    profile_url = models.URLField(
+        blank=True,
+    )
+
+    followers = models.PositiveIntegerField(
+        default=0,
+    )
+
+    is_verified = models.BooleanField(
+        default=False,
+    )
+
+    class Meta:
+        unique_together = (
+            "influencer",
+            "platform",
+        )
+
+    def __str__(self):
+        return f"{self.platform} - {self.handle}"
     
 class BankDetail(TimeStampedModel):
-    influencer = models.OneToOneField(Influencer, on_delete=models.CASCADE)
+    """
+    Stores bank details of influencer.
+    """
 
-    account_number = models.CharField(max_length=50)
-    bank_name = models.CharField(max_length=100)
+    influencer = models.OneToOneField(
+        Influencer,
+        on_delete=models.CASCADE,
+        related_name="bank_detail",
+    )
+
+    account_holder_name = models.CharField(
+        max_length=150,blank=True,null=True
+    )
+
+    account_number = models.CharField(
+        max_length=50,
+    )
+
+    bank_name = models.CharField(
+        max_length=100,blank=True,null=True
+    )
+
+    ifsc_code = models.CharField(
+        max_length=20,blank=True,null=True
+    )
+
+    upi_id = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    is_verified = models.BooleanField(
+        default=False,
+    )
+
+    class Meta:
+        verbose_name = "Bank Detail"
+        verbose_name_plural = "Bank Details"
+
+    def __str__(self):
+        return self.account_holder_name
     
 class Report(TimeStampedModel):
     STATUS_CHOICES = (

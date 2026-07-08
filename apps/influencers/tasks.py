@@ -1,16 +1,13 @@
 import logging
-import os
-from uuid import uuid4
 
 from celery import shared_task
-from django.core.files import File
 from django.utils import timezone
 
-from apps.influencers.exports import generate_influencer_excel
 from apps.influencers.models import ExportReport
+from services.report_cleanup_service import ReportCleanupService
 
 logger = logging.getLogger(__name__)
-from services.report_cleanup_service import (ReportCleanupService)
+
 
 @shared_task(
     bind=True,
@@ -25,7 +22,7 @@ def generate_influencer_report(self, report_id):
 
     logger.info(
         "Started report generation : %s",
-        report_id
+        report_id,
     )
 
     report = ExportReport.objects.get(
@@ -66,7 +63,8 @@ def generate_influencer_report(self, report_id):
         report.save()
 
         raise
-    
+
+
 @shared_task
 def cleanup_old_reports():
     """

@@ -99,7 +99,6 @@ class ExportService:
         StorageService.save_report_file(
             report,
             file_path,
-            filename,
         )
 
         report.status = ExportReport.Status.SUCCESS
