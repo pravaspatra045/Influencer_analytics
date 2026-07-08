@@ -6,12 +6,14 @@ from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+# Read ENVIRONMENT from Docker/container
 ENVIRONMENT = os.getenv("ENVIRONMENT", "local")
 
-# Load correct env file
+# Load the corresponding env file only if it exists
 env_path = BASE_DIR / f".env.{ENVIRONMENT}"
 
-load_dotenv(BASE_DIR / ".env")
+if env_path.exists():
+    load_dotenv(env_path)
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 
@@ -133,8 +135,8 @@ import boto3
 
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_BUCKET_NAME = os.getenv("AWS_BUCKET_NAME")
-AWS_REGION = os.getenv("AWS_REGION")
+AWS_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
+AWS_REGION = os.getenv("AWS_S3_REGION_NAME")
 
 
 
