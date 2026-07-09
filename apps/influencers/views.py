@@ -19,8 +19,9 @@ from apps.influencers.models import Report ,InfluencerDocument
 from services.influencer_query_service import InfluencerQueryService
 from services.report_service import ReportService
 #from core.pagination import StandardResultsSetPagination
-
-
+from services.profile_query_service import ProfileQueryService 
+from apps.influencers.serializers import MyProfileSerializer, UpdateMyProfileSerializer ,
+from services.profile_service import ProfileService
 logger = logging.getLogger(__name__)
 
 
@@ -169,39 +170,32 @@ class InfluencerListAPI(APIView):
 
 class MyProfileAPI(APIView):
     """
-    Influencer dashboard → own data
+    Get authenticated influencer profile.
     """
 
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        try:
-            influencer = Influencer.objects.get(user=request.user)
+        """
+        Returns authenticated influencer profile.
+        """
 
-            data = {
-                "influencer_id": str(influencer.influencer_id),
-                "status": influencer.status,
-                "approved_at": influencer.approved_at,
-                "rejection_reason": influencer.rejection_reason,
-            }
+        influencer = ProfileQueryService.get_my_profile(
+            request.user
+        )
 
-            return Response(
-                standard_response(
-                    message="Profile fetched successfully",
-                    data=data,
-                    status=200
-                )
-            )
+        serializer = MyProfileSerializer(
+            influencer
+        )
 
-        except Influencer.DoesNotExist:
-            return Response(
-                standard_response(
-                    message="Influencer not found",
-                    error="User not registered as influencer",
-                    status=404
-                ),
-                status=404
-            )
+        return Response(
+            standard_response(
+                message="Profile fetched successfully",
+                data=serializer.data,
+                status=200,
+            ),
+            status=200,
+        )
             
 from core.utils import get_date_range
 
@@ -994,6 +988,148 @@ class SecureReportDownloadAPI(APIView):
                     "download_url": url,
                     "expires_in": 600,
                 },
+            ),
+            status=status.HTTP_200_OK,
+        )
+        
+        
+class UpdateMyProfileAPI(APIView):
+    """
+    Update authenticated influencer profile.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+
+        influencer = ProfileQueryService.get_my_profile(
+            request.user
+        )
+
+        serializer = UpdateMyProfileSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(
+            raise_exception=True
+        )
+
+        ProfileService.update_profile(
+            influencer=influencer,
+            profile_data=serializer.validated_data.get(
+                "profile",
+                {},
+            ),
+            bank_data=serializer.validated_data.get(
+                "bank_detail",
+            ),
+            social_accounts=serializer.validated_data.get(
+                "social_accounts",
+            ),
+        )
+
+        influencer = ProfileQueryService.get_my_profile(
+            request.user
+        )
+
+        return Response(
+            standard_response(
+                message="Profile updated successfully.",
+                data=MyProfileSerializer(
+                    influencer
+                ).data,
+                status=200,
+            ),
+            status=200,
+        )
+        
+from rest_framework.parsers import (MultiPartParser,FormParser,)
+from services.media_service import MediaService
+
+class UploadProfileImageAPI(APIView):
+    """
+    Upload profile image.
+    """
+
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+    parser_classes = (
+        MultiPartParser,
+        FormParser,
+    )
+
+    def patch(self, request):
+
+        if "profile_image" not in request.FILES:
+
+            return Response(
+                standard_response(
+                    error="Profile image is required.",
+                ),
+                status=400,
+            )
+
+        influencer = (
+            ProfileQueryService.get_my_profile(
+                request.user
+            )
+        )
+        from services.media_service import MediaService
+
+        MediaService.upload_profile_image(
+            influencer,
+            request.FILES["profile_image"],
+        )
+
+        influencer.refresh_from_db()
+
+        serializer = MyProfileSerializer(
+            influencer
+        )
+
+        return Response(
+            standard_response(
+                message="Profile image uploaded successfully.",
+                data=serializer.data,
+                status=200,
+            ),
+            status=200,
+        )
+        
+class DeleteProfileImageAPI(APIView):
+    """
+    Delete influencer profile image.
+    """
+
+    permission_classes = [
+        IsAuthenticated,
+    ]
+
+    def delete(self, request):
+
+        influencer = (
+            ProfileQueryService.get_my_profile(
+                request.user
+            )
+        )
+
+        MediaService.delete_profile_image(
+            influencer
+        )
+
+        influencer.refresh_from_db()
+
+        serializer = MyProfileSerializer(
+            influencer
+        )
+
+        return Response(
+            standard_response(
+                message="Profile image deleted successfully.",
+                data=serializer.data,
+                status=200,
             ),
             status=status.HTTP_200_OK,
         )

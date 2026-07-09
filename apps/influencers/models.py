@@ -3,7 +3,9 @@ from core.models import TimeStampedModel
 from apps.users.models import User
 import uuid
 from django.utils import timezone
-
+from apps.influencers.upload_paths import (
+    profile_image_upload_path,
+)
 
 class Influencer(TimeStampedModel):
     STATUS_CHOICES = (
@@ -53,10 +55,10 @@ class InfluencerProfile(TimeStampedModel):
     )
 
     profile_image = models.ImageField(
-        upload_to="profile-images/",
-        blank=True,
-        null=True,
-    )
+    upload_to=profile_image_upload_path,
+    blank=True,
+    null=True,
+)
 
     bio = models.TextField(
         blank=True,

@@ -4,8 +4,9 @@ from apps.influencers.views import (InfluencerRegistrationAPI,InfluencerApproval
     RecentInfluencersAPI,
     InfluencerTrendAPI,
     StatusDistributionAPI,GrowthRateAPI,ApprovalTimeAnalyticsAPI, RejectionInsightsAPI, RejectionRateAPI ,ExportInfluencersAPI, AsyncReportAPI,ReportStatusAPI
-    ,UploadDocumentAPI, InfluencerDocumentsAPI, VerifyDocumentAPI, InfluencerReviewAPI ,MyReportsAPI ,DownloadReportAPI ,RetryReportAPI, ReportStatisticsAPI ,SecureReportDownloadAPI)
+    ,UploadDocumentAPI, InfluencerDocumentsAPI, VerifyDocumentAPI, InfluencerReviewAPI ,MyReportsAPI ,DownloadReportAPI ,RetryReportAPI, ReportStatisticsAPI ,SecureReportDownloadAPI , UpdateMyProfileAPI, UploadProfileImageAPI, DeleteProfileImageAPI)
 from apps.users.views import LoginAPI
+
 
 
 urlpatterns = [
@@ -17,6 +18,13 @@ urlpatterns = [
     path("influencer/<int:pk>/status/", InfluencerApprovalAPI.as_view()),
     path("influencers-list/", InfluencerListAPI.as_view()),
     path("my-profile/", MyProfileAPI.as_view()),
+    path("profile/update/",UpdateMyProfileAPI.as_view(),name="update-profile",),
+    path("profile/upload-image/",UploadProfileImageAPI.as_view(),name="upload-profile-image",),
+    path(
+    "profile/delete-image/",
+    DeleteProfileImageAPI.as_view(),
+    name="delete-profile-image",
+),
     
     # dashboard apis
     path("dashboard/stats/", DashboardStatsAPI.as_view()),

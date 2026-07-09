@@ -106,3 +106,37 @@ class StorageService:
             },
             ExpiresIn=expiration,
         )
+        
+    @staticmethod
+    def delete_model_file(file_field):
+        """
+        Delete an existing file from storage.
+        """
+
+        if file_field and file_field.name:
+            default_storage.delete(file_field.name)
+
+
+    @staticmethod
+    def replace_model_file(
+        file_field,
+        uploaded_file,
+    ):
+        """
+        Replace existing file.
+
+        upload_to callable defined on the model
+        will automatically generate the correct path.
+        """
+
+        StorageService.delete_model_file(
+            file_field
+        )
+
+        file_field.save(
+            uploaded_file.name,
+            uploaded_file,
+            save=False,
+        )
+
+        return file_field
