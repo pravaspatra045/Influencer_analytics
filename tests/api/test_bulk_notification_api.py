@@ -56,12 +56,11 @@ def test_create_bulk_notification_validation_error(
 @pytest.mark.django_db
 def test_list_bulk_notifications(
     authenticated_client,
-    user,
+    influencer_user,
 ):
-
     BulkNotificationFactory.create_batch(
         3,
-        created_by=user,
+        created_by=influencer_user,
     )
 
     response = authenticated_client.get(reverse("bulk-notification-list"))
@@ -74,11 +73,10 @@ def test_list_bulk_notifications(
 @pytest.mark.django_db
 def test_bulk_notification_detail(
     authenticated_client,
-    user,
+    influencer_user,
 ):
-
     job = BulkNotificationFactory(
-        created_by=user,
+        created_by=influencer_user,
     )
 
     response = authenticated_client.get(
@@ -108,12 +106,12 @@ def test_bulk_notification_requires_authentication(
 @pytest.mark.django_db
 def test_bulk_notification_queryset_returns_only_current_users_jobs(
     authenticated_client,
-    user,
+    influencer_user,
 ):
 
     BulkNotificationFactory.create_batch(
         2,
-        created_by=user,
+        created_by=influencer_user,
     )
 
     other_user = UserFactory()
