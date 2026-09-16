@@ -11,40 +11,95 @@ on:
       - Dev
       - main
 
+
 jobs:
 
   test:
 
     runs-on: ubuntu-latest
 
+    services:
+
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_DB: test_influencer
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d test_influencer"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+
     steps:
 
       - name: Checkout Repository
         uses: actions/checkout@v4
+
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
+
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+
+      - name: Prepare Test Environment
+        run: |
+          mkdir -p logs
+
+          echo "ENVIRONMENT=local" >> $GITHUB_ENV
+
+          echo "SECRET_KEY=ci-test-secret-key" >> $GITHUB_ENV
+
+          echo "DB_NAME=test_influencer" >> $GITHUB_ENV
+          echo "DB_USER=postgres" >> $GITHUB_ENV
+          echo "DB_PASSWORD=postgres" >> $GITHUB_ENV
+          echo "DB_HOST=localhost" >> $GITHUB_ENV
+          echo "DB_PORT=5432" >> $GITHUB_ENV
+
+          echo "AWS_ACCESS_KEY_ID=test" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=test" >> $GITHUB_ENV
+          echo "AWS_STORAGE_BUCKET_NAME=test-bucket" >> $GITHUB_ENV
+          echo "AWS_S3_REGION_NAME=ap-south-1" >> $GITHUB_ENV
+
+          echo "EMAIL_HOST=smtp.gmail.com" >> $GITHUB_ENV
+          echo "EMAIL_PORT=587" >> $GITHUB_ENV
+          echo "EMAIL_HOST_USER=test@example.com" >> $GITHUB_ENV
+          echo "EMAIL_HOST_PASSWORD=test-password" >> $GITHUB_ENV
+
+
       - name: Black
         run: black --check .
+
 
       - name: isort
         run: isort --check-only .
 
+
       - name: Ruff
         run: ruff check .
 
-      - name: Prepare test environment
-        run: |
-          mkdir -p logs
-          
+
       - name: Run Tests
         run: pytest
 
@@ -53,9 +108,12 @@ jobs:
 
     needs: test
 
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/Dev' || github.ref == 'refs/heads/main')
+    if: >
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/Dev' || github.ref == 'refs/heads/main')
 
     runs-on: ubuntu-latest
+
 
     steps:
 
@@ -65,25 +123,61 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+
           script: |
+
             set -e
 
             cd ~/Influencer_analytics
 
-            echo "Pulling latest code..."
+            echo "======================================"
+            echo "Pulling latest code"
+            echo "======================================"
+
             git checkout Dev
             git pull origin Dev
 
-            echo "Building production Docker images..."
-            docker compose -f docker-compose.prod.yml --env-file .env.prod build
 
-            echo "Running database migrations..."
-            docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm web python manage.py migrate
+            echo "======================================"
+            echo "Building production Docker images"
+            echo "======================================"
 
-            echo "Restarting production services..."
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+            docker compose \
+              -f docker-compose.prod.yml \
+              --env-file .env.prod \
+              build
 
-            echo "Checking service status..."
-            docker compose -f docker-compose.prod.yml --env-file .env.prod ps
 
-            echo "Deployment completed successfully."
+            echo "======================================"
+            echo "Running database migrations"
+            echo "======================================"
+
+            docker compose \
+              -f docker-compose.prod.yml \
+              --env-file .env.prod \
+              run --rm web python manage.py migrate
+
+
+            echo "======================================"
+            echo "Starting production services"
+            echo "======================================"
+
+            docker compose \
+              -f docker-compose.prod.yml \
+              --env-file .env.prod \
+              up -d
+
+
+            echo "======================================"
+            echo "Checking production services"
+            echo "======================================"
+
+            docker compose \
+              -f docker-compose.prod.yml \
+              --env-file .env.prod \
+              ps
+
+
+            echo "======================================"
+            echo "Deployment completed successfully"
+            echo "======================================"
