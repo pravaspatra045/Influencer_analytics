@@ -1,0 +1,23 @@
+{% extends "emails/base.html" %}
+
+{% block title %}
+Report Ready
+{% endblock %}
+
+{% block content %}
+
+<h2>Hello {{ username }},</h2>
+
+<p>
+
+Your report has been generated successfully.
+
+</p>
+
+<a href="{{ download_url }}" class="button">
+
+Download Report
+
+</a>
+
+{% endblock %}

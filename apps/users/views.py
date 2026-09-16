@@ -1,9 +1,12 @@
 import logging
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+
 from apps.users.serializers import LoginSerializer
 from core.utils import standard_response
 
@@ -11,21 +14,43 @@ logger = logging.getLogger(__name__)
 
 
 class LoginAPI(APIView):
+    """
+    Authenticate a user and return JWT access/refresh tokens.
 
-    def post(self, request):
+    Request:
+        POST /login/
+
+    Response:
+        {
+            "message": "Login successful",
+            "data": {
+                "access": "...",
+                "refresh": "...",
+                "role": "ADMIN"
+            }
+        }
+    """
+
+    permission_classes = (AllowAny,)
+    authentication_classes = ()
+
+    def post(self, request: Request) -> Response:
         """
-        Login API → returns JWT tokens
+        Authenticate user credentials and return JWT tokens.
         """
 
         serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-        if serializer.is_valid():
+        try:
             user = serializer.validated_data["user"]
 
-            # 🔹 Generate tokens
             refresh = RefreshToken.for_user(user)
 
-            logger.info(f"User login success | user_id={user.id}")
+            logger.info(
+                "User login successful | user_id=%s",
+                user.id,
+            )
 
             return Response(
                 standard_response(
@@ -33,20 +58,13 @@ class LoginAPI(APIView):
                     data={
                         "access": str(refresh.access_token),
                         "refresh": str(refresh),
-                        "role": user.role
+                        "role": user.role,
                     },
-                    status=200
+                    status=status.HTTP_200_OK,
                 ),
-                status=status.HTTP_200_OK
+                status=status.HTTP_200_OK,
             )
 
-        logger.warning(f"Login failed | errors={serializer.errors}")
-
-        return Response(
-            standard_response(
-                message="Login failed",
-                error=serializer.errors,
-                status=400
-            ),
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        except Exception:
+            logger.exception("Unexpected error during login.")
+            raise

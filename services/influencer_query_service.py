@@ -1,60 +1,106 @@
-from django.db.models import QuerySet
+from typing import Any
+
+from django.db.models import Q, QuerySet
 
 from apps.influencers.models import Influencer
 
 
 class InfluencerQueryService:
     """
-    Shared service for building influencer querysets.
+    Centralized queryset builder for influencer-related queries.
 
-    Every API that needs influencer filtering
-    should use this service.
-
-    This avoids duplicate ORM logic.
+    Keeps filtering, searching, ordering, and query optimization
+    out of API views.
     """
 
-    @staticmethod
-    def get_queryset(filters=None) -> QuerySet:
+    ALLOWED_ORDERING_FIELDS = {
+        "created_at": "created_at",
+        "-created_at": "-created_at",
+        "approved_at": "approved_at",
+        "-approved_at": "-approved_at",
+        "status": "status",
+        "-status": "-status",
+        "influencer_id": "influencer_id",
+        "-influencer_id": "-influencer_id",
+    }
+
+    @classmethod
+    def get_queryset(
+        cls,
+        filters: dict[str, Any] | None = None,
+    ) -> QuerySet[Influencer]:
         """
-        Returns filtered queryset.
+        Build and return an optimized influencer queryset.
+
+        Supported filters:
+            status
+            search
+            ordering
+            min_followers
+            max_followers
         """
 
         queryset = (
-            Influencer.objects
-            .select_related("user")
+            Influencer.objects.select_related(
+                "user",
+                "profile",
+                "bank_detail",
+            )
+            .prefetch_related(
+                "social_accounts",
+                "documents",
+            )
             .all()
         )
 
         if not filters:
-            return queryset
+            return queryset.order_by("-created_at")
 
-        status = filters.get("status")
+        status_value = filters.get("status")
         search = filters.get("search")
         ordering = filters.get("ordering")
         min_followers = filters.get("min_followers")
         max_followers = filters.get("max_followers")
 
-        if status:
-            queryset = queryset.filter(status=status)
+        if status_value:
+            queryset = queryset.filter(
+                status=status_value,
+            )
 
         if search:
             queryset = queryset.filter(
-                full_name__icontains=search
+                Q(profile__full_name__icontains=search)
+                | Q(user__username__icontains=search)
+                | Q(user__email__icontains=search)
+                | Q(influencer_id__icontains=search)
             )
 
-        if min_followers:
+        if min_followers is not None:
             queryset = queryset.filter(
-                followers__gte=min_followers
+                social_accounts__followers__gte=min_followers,
             )
 
-        if max_followers:
+        if max_followers is not None:
             queryset = queryset.filter(
-                followers__lte=max_followers
+                social_accounts__followers__lte=max_followers,
             )
 
         if ordering:
-            queryset = queryset.order_by(ordering)
-        else:
-            queryset = queryset.order_by("-created_at")
+            validated_ordering = cls.ALLOWED_ORDERING_FIELDS.get(
+                ordering,
+            )
 
-        return queryset
+            if validated_ordering:
+                queryset = queryset.order_by(
+                    validated_ordering,
+                )
+            else:
+                queryset = queryset.order_by(
+                    "-created_at",
+                )
+        else:
+            queryset = queryset.order_by(
+                "-created_at",
+            )
+
+        return queryset.distinct()

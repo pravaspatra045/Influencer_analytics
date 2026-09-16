@@ -30,17 +30,13 @@ class MediaValidationService:
         """
 
         if image is None:
-            raise ValidationError(
-                "No image uploaded."
-            )
+            raise ValidationError("No image uploaded.")
 
         # ----------------------------
         # Validate extension
         # ----------------------------
 
-        extension = os.path.splitext(
-            image.name
-        )[1].lower()
+        extension = os.path.splitext(image.name)[1].lower()
 
         if extension not in cls.IMAGE_EXTENSIONS:
             raise ValidationError(
@@ -58,17 +54,13 @@ class MediaValidationService:
         )
 
         if content_type not in cls.ALLOWED_CONTENT_TYPES:
-            raise ValidationError(
-                "Invalid image content type."
-            )
+            raise ValidationError("Invalid image content type.")
 
         # ----------------------------
         # Validate size
         # ----------------------------
 
         if image.size > cls.MAX_IMAGE_SIZE:
-            raise ValidationError(
-                "Image size must not exceed 5 MB."
-            )
+            raise ValidationError("Image size must not exceed 5 MB.")
 
         return image

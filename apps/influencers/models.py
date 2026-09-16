@@ -1,43 +1,88 @@
-from django.db import models
-from core.models import TimeStampedModel
-from apps.users.models import User
 import uuid
-from django.utils import timezone
-from apps.influencers.upload_paths import (
-    profile_image_upload_path,
-)
+
+from django.conf import settings
+from django.db import models
+
+from apps.influencers.upload_paths import profile_image_upload_path
+from core.models import TimeStampedModel
+
 
 class Influencer(TimeStampedModel):
-    STATUS_CHOICES = (
-        ('pending', 'Pending'),
-        ('on_hold', 'On Hold'),
-        ('approved', 'Approved'),
-        ('rejected', 'Rejected'),
+    """
+    Represents the influencer application and approval state.
+
+    Each influencer is associated with exactly one user account.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ON_HOLD = "on_hold", "On Hold"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="influencer",
     )
 
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    influencer_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    influencer_id = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+    )
 
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    referral_code = models.CharField(max_length=20, blank=True, null=True)
-    rejection_reason = models.TextField(blank=True, null=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
+
+    referral_code = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+    )
+
+    rejection_reason = models.TextField(
+        blank=True,
+        null=True,
+    )
 
     approved_by = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='approved_influencers'
+        related_name="approved_influencers",
     )
 
-    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+    )
 
-    def __str__(self):
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "Influencer"
+        verbose_name_plural = "Influencers"
+        indexes = (
+            models.Index(
+                fields=("status", "created_at"),
+                name="influencer_status_created_idx",
+            ),
+        )
+
+    def __str__(self) -> str:
+        """Return the public influencer identifier."""
         return str(self.influencer_id)
-    
+
+
 class InfluencerProfile(TimeStampedModel):
     """
-    Stores personal information of an influencer.
+    Stores personal and profile information for an influencer.
     """
 
     influencer = models.OneToOneField(
@@ -55,10 +100,10 @@ class InfluencerProfile(TimeStampedModel):
     )
 
     profile_image = models.ImageField(
-    upload_to=profile_image_upload_path,
-    blank=True,
-    null=True,
-)
+        upload_to=profile_image_upload_path,
+        blank=True,
+        null=True,
+    )
 
     bio = models.TextField(
         blank=True,
@@ -94,13 +139,22 @@ class InfluencerProfile(TimeStampedModel):
         verbose_name = "Influencer Profile"
         verbose_name_plural = "Influencer Profiles"
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the influencer's full name."""
         return self.full_name
-    
+
+
 class SocialMediaAccount(TimeStampedModel):
     """
-    Stores connected social media accounts.
+    Stores a social media account connected to an influencer.
     """
+
+    class Platform(models.TextChoices):
+        INSTAGRAM = "INSTAGRAM", "Instagram"
+        YOUTUBE = "YOUTUBE", "YouTube"
+        FACEBOOK = "FACEBOOK", "Facebook"
+        TWITTER = "TWITTER", "Twitter"
+        LINKEDIN = "LINKEDIN", "LinkedIn"
 
     influencer = models.ForeignKey(
         Influencer,
@@ -108,17 +162,9 @@ class SocialMediaAccount(TimeStampedModel):
         related_name="social_accounts",
     )
 
-    PLATFORM_CHOICES = (
-        ("INSTAGRAM", "Instagram"),
-        ("YOUTUBE", "YouTube"),
-        ("FACEBOOK", "Facebook"),
-        ("TWITTER", "Twitter"),
-        ("LINKEDIN", "LinkedIn"),
-    )
-
     platform = models.CharField(
         max_length=20,
-        choices=PLATFORM_CHOICES,
+        choices=Platform.choices,
     )
 
     handle = models.CharField(
@@ -131,6 +177,7 @@ class SocialMediaAccount(TimeStampedModel):
 
     followers = models.PositiveIntegerField(
         default=0,
+        db_index=True,
     )
 
     is_verified = models.BooleanField(
@@ -138,17 +185,23 @@ class SocialMediaAccount(TimeStampedModel):
     )
 
     class Meta:
-        unique_together = (
-            "influencer",
-            "platform",
+        verbose_name = "Social Media Account"
+        verbose_name_plural = "Social Media Accounts"
+        constraints = (
+            models.UniqueConstraint(
+                fields=("influencer", "platform"),
+                name="unique_influencer_platform",
+            ),
         )
 
-    def __str__(self):
-        return f"{self.platform} - {self.handle}"
-    
+    def __str__(self) -> str:
+        """Return the platform and account handle."""
+        return f"{self.get_platform_display()} - {self.handle}"
+
+
 class BankDetail(TimeStampedModel):
     """
-    Stores bank details of influencer.
+    Stores bank and payment details associated with an influencer.
     """
 
     influencer = models.OneToOneField(
@@ -158,7 +211,9 @@ class BankDetail(TimeStampedModel):
     )
 
     account_holder_name = models.CharField(
-        max_length=150,blank=True,null=True
+        max_length=150,
+        blank=True,
+        null=True,
     )
 
     account_number = models.CharField(
@@ -166,11 +221,15 @@ class BankDetail(TimeStampedModel):
     )
 
     bank_name = models.CharField(
-        max_length=100,blank=True,null=True
+        max_length=100,
+        blank=True,
+        null=True,
     )
 
     ifsc_code = models.CharField(
-        max_length=20,blank=True,null=True
+        max_length=20,
+        blank=True,
+        null=True,
     )
 
     upi_id = models.CharField(
@@ -186,64 +245,109 @@ class BankDetail(TimeStampedModel):
         verbose_name = "Bank Detail"
         verbose_name_plural = "Bank Details"
 
-    def __str__(self):
-        return self.account_holder_name
-    
+    def __str__(self) -> str:
+        """Return a safe human-readable bank detail representation."""
+        return self.account_holder_name or self.account_number
+
+
 class Report(TimeStampedModel):
-    STATUS_CHOICES = (
-        ("pending", "Pending"),
-        ("processing", "Processing"),
-        ("completed", "Completed"),
-        ("failed", "Failed"),
+    """
+    Represents a legacy/synchronous report record.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PROCESSING = "processing", "Processing"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    report_type = models.CharField(
+        max_length=50,
     )
 
-    report_type = models.CharField(max_length=50)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
+    )
 
-    file_url = models.URLField(null=True, blank=True)
+    file_url = models.URLField(
+        null=True,
+        blank=True,
+    )
 
     requested_by = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
-        null=True
+        null=True,
+        related_name="requested_reports",
     )
 
-    error_message = models.TextField(null=True, blank=True)
+    error_message = models.TextField(
+        null=True,
+        blank=True,
+    )
 
-    def __str__(self):
-        return f"{self.report_type} - {self.status}"
-    
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "Report"
+        verbose_name_plural = "Reports"
+
+    def __str__(self) -> str:
+        """Return the report type and current status."""
+        return f"{self.report_type} - {self.get_status_display()}"
+
+
 class InfluencerDocument(TimeStampedModel):
-    DOCUMENT_TYPES = (
-        ("pan", "PAN Card"),
-        ("aadhaar", "Aadhaar"),
-        ("bank_proof", "Bank Proof"),
-    )
+    """
+    Stores KYC and verification documents submitted by an influencer.
+    """
+
+    class DocumentType(models.TextChoices):
+        PAN = "pan", "PAN Card"
+        AADHAAR = "aadhaar", "Aadhaar"
+        BANK_PROOF = "bank_proof", "Bank Proof"
 
     influencer = models.ForeignKey(
         Influencer,
         on_delete=models.CASCADE,
-        related_name="documents"
+        related_name="documents",
     )
 
-    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPES)
+    document_type = models.CharField(
+        max_length=50,
+        choices=DocumentType.choices,
+    )
 
     file_url = models.URLField()
 
-    is_verified = models.BooleanField(default=False)
+    is_verified = models.BooleanField(
+        default=False,
+        db_index=True,
+    )
 
-    def __str__(self):
-        return f"{self.influencer.id} - {self.document_type}"
-    
+    class Meta:
+        verbose_name = "Influencer Document"
+        verbose_name_plural = "Influencer Documents"
+        indexes = (
+            models.Index(
+                fields=("influencer", "document_type"),
+                name="document_influencer_type_idx",
+            ),
+        )
 
-import uuid
-from django.conf import settings
-from django.db import models
+    def __str__(self) -> str:
+        """Return the influencer and document type."""
+        return (
+            f"{self.influencer.influencer_id} - "
+            f"{self.get_document_type_display()}"
+        )
 
 
 class ExportReport(models.Model):
     """
-    Stores report generation history.
+    Stores asynchronous report/export generation history.
     """
 
     class Status(models.TextChoices):
@@ -282,10 +386,10 @@ class ExportReport(models.Model):
     )
 
     file = models.FileField(
-    upload_to="reports/",
-    blank=True,
-    null=True,
-)
+        upload_to="reports/",
+        blank=True,
+        null=True,
+    )
 
     error_message = models.TextField(
         blank=True,
@@ -300,13 +404,27 @@ class ExportReport(models.Model):
         blank=True,
         null=True,
     )
-    filters = models.JSONField(
-    default=dict,
-    blank=True,
-    )
-    
-    class Meta:
-        ordering = ["-created_at"]
 
-    def __str__(self):
-        return f"{self.report_type} ({self.status})"
+    filters = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "Export Report"
+        verbose_name_plural = "Export Reports"
+        indexes = (
+            models.Index(
+                fields=("user", "-created_at"),
+                name="export_user_created_idx",
+            ),
+            models.Index(
+                fields=("status", "-created_at"),
+                name="export_status_created_idx",
+            ),
+        )
+
+    def __str__(self) -> str:
+        """Return the report type and current status."""
+        return f"{self.report_type} ({self.get_status_display()})"

@@ -1,18 +1,20 @@
 from django.contrib import admin
+
 from .models import (
+    BankDetail,
+    ExportReport,
     Influencer,
     InfluencerProfile,
     SocialMediaAccount,
-    BankDetail,
 )
 
 admin.site.register(Influencer)
 admin.site.register(InfluencerProfile)
 admin.site.register(SocialMediaAccount)
 admin.site.register(BankDetail)
-from .models import ExportReport
+admin.site.register(ExportReport)
 
-@admin.register(ExportReport)
+
 class ExportReportAdmin(admin.ModelAdmin):
     list_display = (
         "id",
@@ -26,6 +28,8 @@ class ExportReportAdmin(admin.ModelAdmin):
     list_filter = (
         "status",
         "report_type",
+        # "is_read",
+        # "is_deleted",
     )
 
     search_fields = (

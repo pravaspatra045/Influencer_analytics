@@ -1,19 +1,46 @@
-from rest_framework import serializers
+from typing import Any
+
 from django.contrib.auth import authenticate
+from rest_framework import serializers
 
 
 class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    password = serializers.CharField(write_only=True)
+    """
+    Serializer for authenticating users.
+    """
 
-    def validate(self, data):
+    username = serializers.CharField()
+
+    password = serializers.CharField(
+        write_only=True,
+    )
+
+    def validate(
+        self,
+        attrs: dict[str, Any],
+    ) -> dict[str, Any]:
+        """
+        Validate user credentials.
+        """
+
+        username = attrs["username"]
+        password = attrs["password"]
+
         user = authenticate(
-            username=data.get("username"),
-            password=data.get("password")
+            request=self.context.get("request"),
+            username=username,
+            password=password,
         )
 
-        if not user:
-            raise serializers.ValidationError("Invalid credentials")
+        if not user or not user.is_active:
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        "Invalid username or password.",
+                    ]
+                }
+            )
 
-        data["user"] = user
-        return data
+        attrs["user"] = user
+
+        return attrs

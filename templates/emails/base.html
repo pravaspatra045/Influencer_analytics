@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Influencer Analytics{% endblock %}</title>
+
+    <style>
+
+        body{
+            margin:0;
+            padding:0;
+            background:#f4f4f4;
+            font-family:Arial,Helvetica,sans-serif;
+        }
+
+        .container{
+
+            max-width:650px;
+
+            margin:40px auto;
+
+            background:#ffffff;
+
+            border-radius:8px;
+
+            overflow:hidden;
+
+            box-shadow:0 2px 8px rgba(0,0,0,.08);
+
+        }
+
+        .header{
+
+            background:#1F4E79;
+
+            color:white;
+
+            padding:25px;
+
+            text-align:center;
+
+        }
+
+        .content{
+
+            padding:30px;
+
+            line-height:1.7;
+
+            color:#444;
+
+        }
+
+        .button{
+
+            display:inline-block;
+
+            background:#1F4E79;
+
+            color:white !important;
+
+            padding:12px 24px;
+
+            text-decoration:none;
+
+            border-radius:5px;
+
+            margin-top:20px;
+
+        }
+
+        .footer{
+
+            background:#eeeeee;
+
+            padding:20px;
+
+            text-align:center;
+
+            font-size:13px;
+
+            color:#666;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="header">
+
+        <h2>Influencer Analytics Platform</h2>
+
+    </div>
+
+    <div class="content">
+
+        {% block content %}
+
+        {% endblock %}
+
+    </div>
+
+    <div class="footer">
+
+        © {% now "Y" %}
+
+        Influencer Analytics
+
+        <br>
+
+        This is an automated email.
+
+    </div>
+
+</div>
+
+</body>
+
+</html>

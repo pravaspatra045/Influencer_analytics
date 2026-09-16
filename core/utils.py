@@ -1,34 +1,57 @@
-def standard_response(message="", error=None, data=None, status=200):
-    """
-    Standard API response format used across all endpoints
+from datetime import timedelta
+from typing import Any
 
-    :param message: success or info message
-    :param error: error details (if any)
-    :param data: response payload
-    :param status: HTTP status code
+from django.utils import timezone
+
+
+def standard_response(
+    message: str = "",
+    error: Any = None,
+    data: Any = None,
+    status: int = 200,
+) -> dict[str, Any]:
     """
+    Return the standard API response format.
+
+    :param message: Success or informational message.
+    :param error: Error details, if any.
+    :param data: Response payload.
+    :param status: HTTP status code.
+    """
+
     return {
         "message": message,
         "error": error,
         "data": data,
-        "status": status
+        "status": status,
     }
-    
-from datetime import timedelta
-from django.utils import timezone
 
 
-def get_date_range(range_param):
+def get_date_range(
+    range_param: str | None,
+):
     """
-    Returns start_date based on range
+    Return the start datetime for a supported date range.
+
+    Supported values:
+        7d  -> last 7 days
+        30d -> last 30 days
+        90d -> last 90 days
+
+    Returns None for unsupported or missing values.
     """
+
     now = timezone.now()
 
-    if range_param == "7d":
-        return now - timedelta(days=7)
-    elif range_param == "30d":
-        return now - timedelta(days=30)
-    elif range_param == "90d":
-        return now - timedelta(days=90)
+    range_days = {
+        "7d": 7,
+        "30d": 30,
+        "90d": 90,
+    }
 
-    return None
+    days = range_days.get(range_param)
+
+    if days is None:
+        return None
+
+    return now - timedelta(days=days)

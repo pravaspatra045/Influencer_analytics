@@ -1,68 +1,94 @@
-from django.db import transaction
+import logging
+from pathlib import Path
+from uuid import uuid4
 
-from services.media_validation_service import (
-    MediaValidationService,
-)
-from services.storage_service import (
-    StorageService,
-)
+from django.core.files.storage import default_storage
+from django.core.files.uploadedfile import UploadedFile
+
+logger = logging.getLogger(__name__)
+
+
+class MediaServiceError(Exception):
+    """Base exception for media-related failures."""
 
 
 class MediaService:
-    """
-    Handles all media-related business logic.
-    """
+    """Centralized handling of uploaded media files."""
 
     @staticmethod
-    @transaction.atomic
-    def upload_profile_image(
-        influencer,
-        image,
-    ):
+    def save(
+        uploaded_file: UploadedFile,
+        directory: str,
+    ) -> str:
         """
-        Upload or replace influencer profile image.
+        Save an uploaded file using Django's configured storage.
         """
 
-        profile = influencer.profile
+        if not uploaded_file:
+            raise MediaServiceError(
+                "No file was provided.",
+            )
 
-        MediaValidationService.validate_image(
-            image
+        directory = directory.strip("/")
+
+        if not directory:
+            raise MediaServiceError(
+                "Media directory is required.",
+            )
+
+        original_name = Path(uploaded_file.name or "").name
+        extension = Path(original_name).suffix.lower()
+
+        filename = f"{uuid4().hex}{extension}"
+        file_path = f"{directory}/{filename}"
+
+        try:
+            saved_path = default_storage.save(
+                file_path,
+                uploaded_file,
+            )
+
+        except Exception as exc:
+            logger.exception(
+                "Failed to save media file | directory=%s",
+                directory,
+            )
+            raise MediaServiceError(
+                "Failed to save media file.",
+            ) from exc
+
+        logger.info(
+            "Media file saved | path=%s",
+            saved_path,
         )
 
-        StorageService.replace_model_file(
-            profile.profile_image,
-            image,
-        )
-
-        profile.save(
-            update_fields=[
-                "profile_image",
-            ]
-        )
-
-        return profile
+        return saved_path
 
     @staticmethod
-    @transaction.atomic
-    def delete_profile_image(
-        influencer,
-    ):
+    def delete(
+        file_path: str | None,
+    ) -> None:
         """
-        Delete influencer profile image.
+        Delete a media file using Django's configured storage.
         """
 
-        profile = influencer.profile
+        if not file_path:
+            return
 
-        StorageService.delete_model_file(
-            profile.profile_image,
-        )
+        try:
+            if default_storage.exists(file_path):
+                default_storage.delete(file_path)
 
-        profile.profile_image = None
+                logger.info(
+                    "Media file deleted | path=%s",
+                    file_path,
+                )
 
-        profile.save(
-            update_fields=[
-                "profile_image",
-            ]
-        )
-
-        return profile
+        except Exception as exc:
+            logger.exception(
+                "Failed to delete media file | path=%s",
+                file_path,
+            )
+            raise MediaServiceError(
+                "Failed to delete media file.",
+            ) from exc

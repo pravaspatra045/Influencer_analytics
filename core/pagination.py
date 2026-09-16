@@ -13,16 +13,18 @@ class StandardPagination(PageNumberPagination):
 
     def get_paginated_response(self, data):
 
-        return Response({
-            "message": data.get("message"),
-            "error": data.get("error"),
-            "status": 200,
-            "pagination": {
-                "count": self.page.paginator.count,
-                "current_page": self.page.number,
-                "total_pages": self.page.paginator.num_pages,
-                "next": self.get_next_link(),
-                "previous": self.get_previous_link(),
-            },
-            "data": data.get("data"),
-        })
+        return Response(
+            {
+                "message": data.get("message"),
+                "error": data.get("error"),
+                "status": 200,
+                "pagination": {
+                    "count": self.page.paginator.count,
+                    "current_page": self.page.number,
+                    "total_pages": self.page.paginator.num_pages,
+                    "next": self.get_next_link(),
+                    "previous": self.get_previous_link(),
+                },
+                "data": data.get("data"),
+            }
+        )

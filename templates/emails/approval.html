@@ -1,0 +1,29 @@
+{% extends "emails/base.html" %}
+
+{% block title %}
+Account Approved
+{% endblock %}
+
+{% block content %}
+
+<h2>Congratulations {{ username }} 🎉</h2>
+
+<p>
+
+Your influencer account has been approved.
+
+</p>
+
+<p>
+
+You can now log in and start using the platform.
+
+</p>
+
+<a href="{{ login_url }}" class="button">
+
+Login
+
+</a>
+
+{% endblock %}

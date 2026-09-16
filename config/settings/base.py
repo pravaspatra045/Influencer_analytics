@@ -1,50 +1,64 @@
 import os
-from dotenv import load_dotenv
-from pathlib import Path
 from datetime import timedelta
+from pathlib import Path
+
 from celery.schedules import crontab
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Read ENVIRONMENT from Docker/container
+# Read environment from Docker/container.
 ENVIRONMENT = os.getenv("ENVIRONMENT", "local")
 
-# Load the corresponding env file only if it exists
+# Load the corresponding environment file when it exists.
 env_path = BASE_DIR / f".env.{ENVIRONMENT}"
 
 if env_path.exists():
     load_dotenv(env_path)
 
+
 SECRET_KEY = os.getenv("SECRET_KEY")
 
 
-#Middleware
-MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
+# ---------------------------------------------------------------------------
+# Applications
+# ---------------------------------------------------------------------------
 
-
-# apps
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'rest_framework',
-    'apps.users',
-    'apps.influencers',
-    'storages',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "rest_framework",
+    "apps.users",
+    "apps.influencers",
+    "storages",
+    "apps.notifications",
 ]
 
-#Templates settings
+
+# ---------------------------------------------------------------------------
+# Middleware
+# ---------------------------------------------------------------------------
+
+MIDDLEWARE = [
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.middleware.RequestLoggingMiddleware",
+]
+
+
+# ---------------------------------------------------------------------------
+# Templates
+# ---------------------------------------------------------------------------
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -61,10 +75,13 @@ TEMPLATES = [
     },
 ]
 
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
-# DB Settings
+# ---------------------------------------------------------------------------
+# Database
+# ---------------------------------------------------------------------------
 
 DATABASES = {
     "default": {
@@ -74,20 +91,34 @@ DATABASES = {
         "PASSWORD": os.getenv("DB_PASSWORD"),
         "HOST": os.getenv("DB_HOST"),
         "PORT": os.getenv("DB_PORT"),
-    }
+    },
 }
 
-AUTH_USER_MODEL = 'users.User'
 
-ROOT_URLCONF = 'config.urls'
+AUTH_USER_MODEL = "users.User"
 
-# JWT Authentication
+ROOT_URLCONF = "config.urls"
+
+
+# ---------------------------------------------------------------------------
+# Django REST Framework
+# ---------------------------------------------------------------------------
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    "DEFAULT_PAGINATION_CLASS": (
+        "rest_framework.pagination.PageNumberPagination"
+    ),
+    "PAGE_SIZE": 10,
+    "EXCEPTION_HANDLER": "core.exception_handler.custom_exception_handler",
 }
+
+
+# ---------------------------------------------------------------------------
+# JWT Authentication
+# ---------------------------------------------------------------------------
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
@@ -95,13 +126,11 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-# pagination
-REST_FRAMEWORK.update({
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "PAGE_SIZE": 10
-})
 
-# celery config
+# ---------------------------------------------------------------------------
+# Celery
+# ---------------------------------------------------------------------------
+
 CELERY_BROKER_URL = "redis://redis:6379/0"
 
 CELERY_RESULT_BACKEND = "redis://redis:6379/0"
@@ -118,9 +147,7 @@ CELERY_TASK_TRACK_STARTED = True
 
 CELERY_TASK_TIME_LIMIT = 30 * 60
 
-
 CELERY_BEAT_SCHEDULE = {
-
     "cleanup-old-reports": {
         "task": "apps.influencers.tasks.cleanup_old_reports",
         "schedule": crontab(
@@ -128,61 +155,90 @@ CELERY_BEAT_SCHEDULE = {
             minute=0,
         ),
     },
-
 }
-#AWS settings
-import boto3
+
+
+# ---------------------------------------------------------------------------
+# AWS
+# ---------------------------------------------------------------------------
 
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+
 AWS_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
+
 AWS_REGION = os.getenv("AWS_S3_REGION_NAME")
 
 
+# ---------------------------------------------------------------------------
+# Static files
+# ---------------------------------------------------------------------------
 
-#static files  settings
 STATIC_URL = "/static/"
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 
+# ---------------------------------------------------------------------------
+# Media files
+# ---------------------------------------------------------------------------
 
-#Media settings
 MEDIA_URL = "/media/"
 
 MEDIA_ROOT = BASE_DIR / "media"
 
 
-# Log settings
-LOG_DIR = os.path.join(BASE_DIR, "logs")
+# ---------------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------------
 
-if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
-
+LOG_DIR = BASE_DIR / "logs"
 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-
     "formatters": {
         "verbose": {
             "format": "{levelname} {asctime} {module} {message}",
             "style": "{",
         },
     },
-
     "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
         "file": {
-            "level": "INFO",
             "class": "logging.FileHandler",
-            "filename": os.path.join(BASE_DIR, "logs/app.log"),
-            "formatter": "verbose",
+            "filename": str(LOG_DIR / "app.log"),
         },
     },
-
     "root": {
-        "handlers": ["file"],
+        "handlers": [
+            "console",
+            "file",
+        ],
         "level": "INFO",
     },
 }
 
+
+# ---------------------------------------------------------------------------
+# Email
+# ---------------------------------------------------------------------------
+
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+
+EMAIL_HOST = os.getenv("EMAIL_HOST")
+
+EMAIL_PORT = int(
+    os.getenv("EMAIL_PORT", "587"),
+)
+
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

@@ -12,4 +12,4 @@ class IsAdminOrManager(BasePermission):
         if not user or not user.is_authenticated:
             return False
 
-        return user.role in ['admin', 'manager']
+        return user.role in ["admin", "manager"]
