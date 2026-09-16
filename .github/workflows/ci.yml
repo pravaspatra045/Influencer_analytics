@@ -101,7 +101,7 @@ jobs:
 
 
       - name: Run Tests
-        run: pytest
+        run: pytest --create-db
 
 
   deploy:
