@@ -41,6 +41,10 @@ jobs:
       - name: Ruff
         run: ruff check .
 
+      - name: Prepare test environment
+        run: |
+          mkdir -p logs
+          
       - name: Run Tests
         run: pytest
 
