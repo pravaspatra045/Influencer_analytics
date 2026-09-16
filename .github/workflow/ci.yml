@@ -1,4 +1,4 @@
-name: Django CI
+name: Django CI/CD
 
 on:
   push:
@@ -43,3 +43,43 @@ jobs:
 
       - name: Run Tests
         run: pytest
+
+
+  deploy:
+
+    needs: test
+
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/Dev' || github.ref == 'refs/heads/main')
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            cd ~/Influencer_analytics
+
+            echo "Pulling latest code..."
+            git checkout Dev
+            git pull origin Dev
+
+            echo "Building production Docker images..."
+            docker compose -f docker-compose.prod.yml --env-file .env.prod build
+
+            echo "Running database migrations..."
+            docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm web python manage.py migrate
+
+            echo "Restarting production services..."
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+
+            echo "Checking service status..."
+            docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+
+            echo "Deployment completed successfully."
