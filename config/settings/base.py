@@ -7,17 +7,27 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# Read environment from Docker/container.
+
+# ---------------------------------------------------------------------------
+# Environment
+# ---------------------------------------------------------------------------
+
 ENVIRONMENT = os.getenv("ENVIRONMENT", "local")
 
-# Load the corresponding environment file when it exists.
 env_path = BASE_DIR / f".env.{ENVIRONMENT}"
 
 if env_path.exists():
     load_dotenv(env_path)
 
 
+# ---------------------------------------------------------------------------
+# Security
+# ---------------------------------------------------------------------------
+
 SECRET_KEY = os.getenv("SECRET_KEY")
+
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is not set")
 
 
 # ---------------------------------------------------------------------------
@@ -36,6 +46,7 @@ INSTALLED_APPS = [
     "apps.influencers",
     "storages",
     "apps.notifications",
+    "rest_framework_simplejwt.token_blacklist",
 ]
 
 
@@ -91,6 +102,7 @@ DATABASES = {
         "PASSWORD": os.getenv("DB_PASSWORD"),
         "HOST": os.getenv("DB_HOST"),
         "PORT": os.getenv("DB_PORT"),
+        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
     },
 }
 
@@ -101,6 +113,37 @@ ROOT_URLCONF = "config.urls"
 
 
 # ---------------------------------------------------------------------------
+# Password Validation
+# ---------------------------------------------------------------------------
+
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "UserAttributeSimilarityValidator"
+        ),
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation." "MinimumLengthValidator"
+        ),
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "CommonPasswordValidator"
+        ),
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "NumericPasswordValidator"
+        ),
+    },
+]
+
+
+# ---------------------------------------------------------------------------
 # Django REST Framework
 # ---------------------------------------------------------------------------
 
@@ -108,6 +151,17 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "30/minute",
+        "user": "120/minute",
+    },
     "DEFAULT_PAGINATION_CLASS": (
         "rest_framework.pagination.PageNumberPagination"
     ),
@@ -121,9 +175,15 @@ REST_FRAMEWORK = {
 # ---------------------------------------------------------------------------
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        minutes=int(os.getenv("JWT_ACCESS_TOKEN_MINUTES", "60"))
+    ),
+    "REFRESH_TOKEN_LIFETIME": timedelta(
+        days=int(os.getenv("JWT_REFRESH_TOKEN_DAYS", "1"))
+    ),
     "AUTH_HEADER_TYPES": ("Bearer",),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 
@@ -131,9 +191,15 @@ SIMPLE_JWT = {
 # Celery
 # ---------------------------------------------------------------------------
 
-CELERY_BROKER_URL = "redis://redis:6379/0"
+CELERY_BROKER_URL = os.getenv(
+    "CELERY_BROKER_URL",
+    "redis://redis:6379/0",
+)
 
-CELERY_RESULT_BACKEND = "redis://redis:6379/0"
+CELERY_RESULT_BACKEND = os.getenv(
+    "CELERY_RESULT_BACKEND",
+    "redis://redis:6379/0",
+)
 
 CELERY_ACCEPT_CONTENT = ["json"]
 
@@ -159,6 +225,20 @@ CELERY_BEAT_SCHEDULE = {
 
 
 # ---------------------------------------------------------------------------
+# Cache
+# ---------------------------------------------------------------------------
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": os.getenv(
+            "CACHE_REDIS_URL",
+            "redis://redis:6379/1",
+        ),
+    },
+}
+
+# ---------------------------------------------------------------------------
 # AWS
 # ---------------------------------------------------------------------------
 
@@ -172,7 +252,7 @@ AWS_REGION = os.getenv("AWS_S3_REGION_NAME")
 
 
 # ---------------------------------------------------------------------------
-# Static files
+# Static Files
 # ---------------------------------------------------------------------------
 
 STATIC_URL = "/static/"
@@ -181,7 +261,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 
 # ---------------------------------------------------------------------------
-# Media files
+# Media Files
 # ---------------------------------------------------------------------------
 
 MEDIA_URL = "/media/"
@@ -194,6 +274,11 @@ MEDIA_ROOT = BASE_DIR / "media"
 # ---------------------------------------------------------------------------
 
 LOG_DIR = BASE_DIR / "logs"
+
+LOG_DIR.mkdir(
+    parents=True,
+    exist_ok=True,
+)
 
 LOGGING = {
     "version": 1,

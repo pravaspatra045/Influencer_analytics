@@ -32,6 +32,7 @@ from apps.influencers.serializers import (
     UpdateMyProfileSerializer,
 )
 from apps.influencers.services import create_export_report
+from apps.users.permissions import IsAdminOrManager
 from core.pagination import StandardPagination
 from core.utils import get_date_range, standard_response
 from services.influencer_query_service import InfluencerQueryService
@@ -44,7 +45,7 @@ from services.report_service import (
     ReportRetryError,
     ReportService,
 )
-from services.storage_service import StorageService
+from services.storage_service import StorageService, StorageServiceError
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,18 @@ def _get_influencer_filters(request: Request) -> dict:
         "min_followers": request.query_params.get("min_followers"),
         "max_followers": request.query_params.get("max_followers"),
     }
+
+
+def mask_account_number(account_number: str | None) -> str | None:
+    if not account_number:
+        return None
+
+    account_number = str(account_number)
+
+    if len(account_number) <= 4:
+        return "*" * len(account_number)
+
+    return "*" * (len(account_number) - 4) + account_number[-4:]
 
 
 class InfluencerRegistrationAPI(APIView):
@@ -128,7 +141,7 @@ class InfluencerApprovalAPI(APIView):
     Role-specific authorization can be hardened in the security phase.
     """
 
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAdminOrManager,)
 
     def post(self, request: Request, pk: int) -> Response:
         try:
@@ -702,18 +715,22 @@ class UploadDocumentAPI(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        except Influencer.DoesNotExist:
+        except StorageServiceError as exc:
             return Response(
                 standard_response(
-                    error="Influencer not found",
+                    error=str(exc),
+                    status=status.HTTP_400_BAD_REQUEST,
                 ),
-                status=status.HTTP_404_NOT_FOUND,
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
 
 class InfluencerDocumentsAPI(APIView):
     """
     Return documents belonging to an influencer.
+
+    Admins and managers can review any influencer's documents.
+    Influencers can only view their own documents.
     """
 
     permission_classes = (IsAuthenticated,)
@@ -723,8 +740,47 @@ class InfluencerDocumentsAPI(APIView):
         request: Request,
         influencer_id,
     ) -> Response:
+
+        if request.user.role == "influencer":
+            influencer = Influencer.objects.filter(
+                id=influencer_id,
+                user=request.user,
+            ).first()
+
+            if influencer is None:
+                return Response(
+                    standard_response(
+                        error="You are not authorized to access these documents.",
+                        status=status.HTTP_403_FORBIDDEN,
+                    ),
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        elif request.user.role in {"admin", "manager"}:
+            influencer = Influencer.objects.filter(
+                id=influencer_id,
+            ).first()
+
+            if influencer is None:
+                return Response(
+                    standard_response(
+                        error="Influencer not found.",
+                        status=status.HTTP_404_NOT_FOUND,
+                    ),
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        else:
+            return Response(
+                standard_response(
+                    error="You are not authorized to access these documents.",
+                    status=status.HTTP_403_FORBIDDEN,
+                ),
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         documents = InfluencerDocument.objects.filter(
-            influencer_id=influencer_id,
+            influencer=influencer,
         )
 
         data = [
@@ -751,7 +807,7 @@ class VerifyDocumentAPI(APIView):
     Mark an influencer document as verified.
     """
 
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAdminOrManager,)
 
     def post(
         self,
@@ -847,8 +903,10 @@ class InfluencerReviewAPI(APIView):
                     "phone": influencer.profile.phone,
                 },
                 "bank": {
-                    "account_number": influencer.bank_detail.account_number,
-                    "bank_name": influencer.bank_detail.bank_name,
+                    "account_number": mask_account_number(
+                        influencer.bankdetail.account_number
+                    ),
+                    "bank_name": influencer.bankdetail.bank_name,
                 },
                 "documents": documents_data,
                 "social_media": social_data,
