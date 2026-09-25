@@ -3,6 +3,7 @@ import logging
 from celery import shared_task
 
 from apps.influencers.models import ExportReport
+from core.celery_tasks import LoggedTask
 from services.export_service import ExportService
 from services.report_cleanup_service import ReportCleanupService
 
@@ -11,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 @shared_task(
     bind=True,
+    base=LoggedTask,
     max_retries=3,
     retry_backoff=True,
     retry_backoff_max=60,
@@ -24,47 +26,66 @@ def generate_influencer_report(
     Generate an influencer report asynchronously.
 
     Celery retries report-generation failures up to three times
-    with exponential backoff.
+    with exponential backoff and jitter.
 
     Report state:
+
         PENDING
            ↓
         PROCESSING
            ↓
         SUCCESS
 
-    When a generation attempt fails, ExportService marks the report
-    as FAILED. If retries remain, this task changes the report back
-    to PENDING before scheduling the next attempt.
+    On a failed attempt:
+
+        PROCESSING
+           ↓
+        PENDING
+           ↓
+        RETRY
+
+    After the final failed attempt, the exception is raised and
+    the report remains in the failed state managed by the
+    ExportService/report-generation workflow.
     """
 
     logger.info(
-        "Started report generation | report_id=%s | task_id=%s | retry=%s",
+        "Started report generation | " "report_id=%s | task_id=%s | retry=%s",
         report_id,
         self.request.id,
         self.request.retries,
     )
 
+    # ------------------------------------------------------------
+    # Fetch report
+    # ------------------------------------------------------------
     try:
         report = ExportReport.objects.get(
             id=report_id,
         )
+
     except ExportReport.DoesNotExist:
         logger.error(
-            "Report not found | report_id=%s | task_id=%s",
+            "Report not found | " "report_id=%s | task_id=%s",
             report_id,
             self.request.id,
         )
 
+        # A missing report is a permanent condition.
+        # Do not retry.
         return {
             "status": "not_found",
             "report_id": report_id,
         }
 
+    # ------------------------------------------------------------
+    # Idempotency protection
+    # ------------------------------------------------------------
     if report.status == ExportReport.Status.SUCCESS:
         logger.info(
-            "Report already completed | report_id=%s",
+            "Report already completed | " "report_id=%s | task_id=%s",
             report_id,
+            self.request.id,
         )
 
         return {
@@ -72,6 +93,9 @@ def generate_influencer_report(
             "report_id": report_id,
         }
 
+    # ------------------------------------------------------------
+    # Mark report as processing
+    # ------------------------------------------------------------
     report.task_id = self.request.id
     report.status = ExportReport.Status.PROCESSING
     report.error_message = None
@@ -84,15 +108,20 @@ def generate_influencer_report(
         ),
     )
 
+    # ------------------------------------------------------------
+    # Generate report
+    # ------------------------------------------------------------
     try:
         ExportService.generate_report(
             report,
         )
 
         logger.info(
-            "Completed report generation | report_id=%s | task_id=%s",
+            "Completed report generation | "
+            "report_id=%s | task_id=%s | retry=%s",
             report_id,
             self.request.id,
+            self.request.retries,
         )
 
         return {
@@ -109,6 +138,9 @@ def generate_influencer_report(
             self.request.retries,
         )
 
+        # --------------------------------------------------------
+        # Retry if attempts remain
+        # --------------------------------------------------------
         if self.request.retries < self.max_retries:
             report.status = ExportReport.Status.PENDING
             report.completed_at = None
@@ -120,21 +152,38 @@ def generate_influencer_report(
                 ),
             )
 
+            logger.warning(
+                "Scheduling report retry | "
+                "report_id=%s | task_id=%s | "
+                "retry=%s | max_retries=%s",
+                report_id,
+                self.request.id,
+                self.request.retries + 1,
+                self.max_retries,
+            )
+
             raise self.retry(
                 exc=exc,
             )
 
+        # --------------------------------------------------------
+        # Final failure
+        # --------------------------------------------------------
         logger.error(
             "Report generation permanently failed | "
-            "report_id=%s | task_id=%s",
+            "report_id=%s | task_id=%s | "
+            "retries=%s",
             report_id,
             self.request.id,
+            self.request.retries,
         )
 
         raise
 
 
-@shared_task
+@shared_task(
+    base=LoggedTask,
+)
 def cleanup_old_reports() -> int:
     """
     Delete old report files and database records.

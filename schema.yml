@@ -1,0 +1,776 @@
+openapi: 3.0.3
+info:
+  title: Influencer Analytics API
+  version: 1.0.0
+  description: API documentation for the Influencer Analytics platform.
+paths:
+  /api/v1/:
+    get:
+      operationId: v1_retrieve
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/{notification_id}/:
+    get:
+      operationId: v1_retrieve_2
+      parameters:
+      - in: path
+        name: notification_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/{notification_id}/delete/:
+    delete:
+      operationId: v1_delete_destroy
+      parameters:
+      - in: path
+        name: notification_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/{notification_id}/read/:
+    patch:
+      operationId: v1_read_partial_update
+      parameters:
+      - in: path
+        name: notification_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/bulk-notifications/:
+    get:
+      operationId: v1_bulk_notifications_list
+      description: Returns bulk notification jobs.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBulkNotificationList'
+          description: ''
+  /api/v1/bulk-notifications/{bulk_notification_id}/:
+    get:
+      operationId: v1_bulk_notifications_retrieve
+      description: Returns a single bulk notification job.
+      parameters:
+      - in: path
+        name: bulk_notification_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkNotification'
+          description: ''
+  /api/v1/bulk-notifications/create/:
+    post:
+      operationId: v1_bulk_notifications_create_create
+      description: Creates a bulk notification job.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkNotificationCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BulkNotificationCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BulkNotificationCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkNotificationCreate'
+          description: ''
+  /api/v1/dashboard/approval-time/:
+    get:
+      operationId: v1_dashboard_approval_time_retrieve
+      description: Calculate approval-time metrics.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/async-report/:
+    post:
+      operationId: v1_dashboard_async_report_create
+      description: Start asynchronous influencer report generation.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/export/:
+    get:
+      operationId: v1_dashboard_export_retrieve
+      description: Export influencers using the synchronous report service.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/growth/:
+    get:
+      operationId: v1_dashboard_growth_retrieve
+      description: Calculate influencer growth percentage between two periods.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/recent/:
+    get:
+      operationId: v1_dashboard_recent_retrieve
+      description: Return the latest registered influencers.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/rejection-insights/:
+    get:
+      operationId: v1_dashboard_rejection_insights_retrieve
+      description: Analyze influencer rejection reasons.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/rejection-rate/:
+    get:
+      operationId: v1_dashboard_rejection_rate_retrieve
+      description: Calculate the overall influencer rejection percentage.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/report-status/{report_id}/:
+    get:
+      operationId: v1_dashboard_report_status_retrieve
+      description: Return the status of an asynchronous report.
+      parameters:
+      - in: path
+        name: report_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/stats/:
+    get:
+      operationId: v1_dashboard_stats_retrieve
+      description: Return dashboard statistics with optional time filtering.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/status-distribution/:
+    get:
+      operationId: v1_dashboard_status_distribution_retrieve
+      description: Return influencer status distribution for charts.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dashboard/trends/:
+    get:
+      operationId: v1_dashboard_trends_retrieve
+      description: Return influencer registration trends grouped by date.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/documents/{influencer_id}/:
+    get:
+      operationId: v1_documents_retrieve
+      description: |-
+        Return documents belonging to an influencer.
+
+        Admins and managers can review any influencer's documents.
+        Influencers can only view their own documents.
+      parameters:
+      - in: path
+        name: influencer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/influencer-review/{influencer_id}/:
+    get:
+      operationId: v1_influencer_review_retrieve
+      description: Return complete influencer review information.
+      parameters:
+      - in: path
+        name: influencer_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/influencer/{id}/status/:
+    post:
+      operationId: v1_influencer_status_create
+      description: |-
+        Approve, reject, or put an influencer on hold.
+
+        Authorization is currently preserved as authenticated-user access.
+        Role-specific authorization can be hardened in the security phase.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/influencers-list/:
+    get:
+      operationId: v1_influencers_list_retrieve
+      description: List influencers with filtering, searching, and ordering.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/login/:
+    post:
+      operationId: v1_login_create
+      description: Authenticate user credentials and return JWT tokens.
+      tags:
+      - v1
+      security:
+      - BearerAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/my-profile/:
+    get:
+      operationId: v1_my_profile_retrieve
+      description: Get the authenticated influencer's profile.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/preferences/:
+    get:
+      operationId: v1_preferences_retrieve
+      description: Get/Update notification preferences.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: v1_preferences_partial_update
+      description: Get/Update notification preferences.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/profile/delete-image/:
+    delete:
+      operationId: v1_profile_delete_image_destroy
+      description: Delete the authenticated influencer's profile image.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/profile/update/:
+    put:
+      operationId: v1_profile_update_update
+      description: Update the authenticated influencer profile.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/profile/upload-image/:
+    patch:
+      operationId: v1_profile_upload_image_partial_update
+      description: Upload an influencer profile image.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/read-all/:
+    patch:
+      operationId: v1_read_all_partial_update
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/register/:
+    post:
+      operationId: v1_register_create
+      description: Register a new influencer.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reports/:
+    get:
+      operationId: v1_reports_retrieve
+      description: Return paginated reports belonging to the authenticated user.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reports/{report_id}/download/:
+    get:
+      operationId: v1_reports_download_retrieve
+      description: Download a generated report.
+      parameters:
+      - in: path
+        name: report_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reports/{report_id}/retry/:
+    post:
+      operationId: v1_reports_retry_create
+      description: Retry a failed report.
+      parameters:
+      - in: path
+        name: report_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reports/{report_id}/secure-download/:
+    get:
+      operationId: v1_reports_secure_download_retrieve
+      description: Generate a temporary report download URL.
+      parameters:
+      - in: path
+        name: report_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reports/statistics/:
+    get:
+      operationId: v1_reports_statistics_retrieve
+      description: Return report statistics for the authenticated user.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/unread-count/:
+    get:
+      operationId: v1_unread_count_retrieve
+      description: Returns unread notification count.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/upload-document/:
+    post:
+      operationId: v1_upload_document_create
+      description: Upload an influencer KYC document.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/v1/verify-document/{doc_id}/:
+    post:
+      operationId: v1_verify_document_create
+      description: Mark an influencer document as verified.
+      parameters:
+      - in: path
+        name: doc_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          description: No response body
+components:
+  schemas:
+    BulkNotification:
+      type: object
+      description: Serializer for bulk notification jobs.
+      properties:
+        bulk_notification_id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        message:
+          type: string
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        notification_type:
+          $ref: '#/components/schemas/NotificationTypeEnum'
+        recipient_type:
+          $ref: '#/components/schemas/RecipientTypeEnum'
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        total_users:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        processed_users:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        failed_users:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        progress:
+          type: string
+          readOnly: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - bulk_notification_id
+      - category
+      - created_at
+      - message
+      - notification_type
+      - progress
+      - title
+    BulkNotificationCreate:
+      type: object
+      description: Serializer for creating bulk notification jobs.
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        message:
+          type: string
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        notification_type:
+          $ref: '#/components/schemas/NotificationTypeEnum'
+        recipient_type:
+          $ref: '#/components/schemas/RecipientTypeEnum'
+        template:
+          type: string
+        subject:
+          type: string
+        payload: {}
+      required:
+      - category
+      - message
+      - notification_type
+      - recipient_type
+      - title
+    BulkNotificationCreateRequest:
+      type: object
+      description: Serializer for creating bulk notification jobs.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        message:
+          type: string
+          minLength: 1
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        notification_type:
+          $ref: '#/components/schemas/NotificationTypeEnum'
+        recipient_type:
+          $ref: '#/components/schemas/RecipientTypeEnum'
+        template:
+          type: string
+        subject:
+          type: string
+        payload: {}
+      required:
+      - category
+      - message
+      - notification_type
+      - recipient_type
+      - title
+    CategoryEnum:
+      enum:
+      - REGISTRATION
+      - APPROVAL
+      - REPORT
+      - PROFILE
+      - SYSTEM
+      type: string
+      description: |-
+        * `REGISTRATION` - Registration
+        * `APPROVAL` - Approval
+        * `REPORT` - Report
+        * `PROFILE` - Profile
+        * `SYSTEM` - System
+    NotificationTypeEnum:
+      enum:
+      - EMAIL
+      - IN_APP
+      - SMS
+      type: string
+      description: |-
+        * `EMAIL` - Email
+        * `IN_APP` - In App
+        * `SMS` - SMS
+    PaginatedBulkNotificationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BulkNotification'
+    RecipientTypeEnum:
+      enum:
+      - ALL_USERS
+      - ALL_INFLUENCERS
+      - SELECTED_USERS
+      type: string
+      description: |-
+        * `ALL_USERS` - All Users
+        * `ALL_INFLUENCERS` - All Influencers
+        * `SELECTED_USERS` - Selected Users
+    StatusEnum:
+      enum:
+      - PENDING
+      - PROCESSING
+      - COMPLETED
+      - FAILED
+      type: string
+      description: |-
+        * `PENDING` - Pending
+        * `PROCESSING` - Processing
+        * `COMPLETED` - Completed
+        * `FAILED` - Failed
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

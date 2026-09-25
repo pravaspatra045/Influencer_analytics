@@ -8,6 +8,7 @@ from django.db.models import (
     F,
     Max,
     Min,
+    Q,
 )
 from django.db.models.functions import TruncDate
 from django.http import FileResponse, HttpResponse
@@ -268,28 +269,45 @@ class DashboardStatsAPI(APIView):
                 created_at__gte=start_date,
             )
 
-        total = queryset.count()
-        approved = queryset.filter(
-            status=Influencer.Status.APPROVED,
-        ).count()
-        pending = queryset.filter(
-            status=Influencer.Status.PENDING,
-        ).count()
-        rejected = queryset.filter(
-            status=Influencer.Status.REJECTED,
-        ).count()
-        on_hold = queryset.filter(
-            status=Influencer.Status.ON_HOLD,
-        ).count()
+        stats = queryset.aggregate(
+            total=Count("id"),
+            approved=Count(
+                "id",
+                filter=Q(
+                    status=Influencer.Status.APPROVED,
+                ),
+            ),
+            pending=Count(
+                "id",
+                filter=Q(
+                    status=Influencer.Status.PENDING,
+                ),
+            ),
+            rejected=Count(
+                "id",
+                filter=Q(
+                    status=Influencer.Status.REJECTED,
+                ),
+            ),
+            on_hold=Count(
+                "id",
+                filter=Q(
+                    status=Influencer.Status.ON_HOLD,
+                ),
+            ),
+        )
+
+        total = stats["total"]
+        approved = stats["approved"]
 
         approval_rate = approved / total * 100 if total > 0 else 0
 
         data = {
-            "total": total,
-            "approved": approved,
-            "pending": pending,
-            "rejected": rejected,
-            "on_hold": on_hold,
+            "total": stats["total"],
+            "approved": stats["approved"],
+            "pending": stats["pending"],
+            "rejected": stats["rejected"],
+            "on_hold": stats["on_hold"],
             "approval_rate": round(approval_rate, 2),
         }
 
@@ -535,11 +553,18 @@ class RejectionRateAPI(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request: Request) -> Response:
-        total = Influencer.objects.count()
+        stats = Influencer.objects.aggregate(
+            total=Count("id"),
+            rejected=Count(
+                "id",
+                filter=Q(
+                    status=Influencer.Status.REJECTED,
+                ),
+            ),
+        )
 
-        rejected = Influencer.objects.filter(
-            status=Influencer.Status.REJECTED,
-        ).count()
+        total = stats["total"]
+        rejected = stats["rejected"]
 
         rejection_rate = rejected / total * 100 if total > 0 else 0
 
